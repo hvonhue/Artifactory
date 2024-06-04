@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+import pytorch_lightning as pl
 import torch
 from torch.nn import (
     BatchNorm1d,
@@ -17,7 +18,7 @@ from torch.nn import (
 from torch.optim.lr_scheduler import _LRScheduler
 
 activations = {
-    "relu": ReLU(),
+    "relu": ReLU(inplace=True),
     "sigmoid": Sigmoid(),
     "tanh": Tanh(),
 }
@@ -58,9 +59,9 @@ def _convolutions(
                 padding="same" if pad else 0,
             )
         )
-        if batch_normalization:
-            layers.append(BatchNorm1d(num_features=convolution_features[i + 1]))
         if i < len(convolution_features) - 2 or last:
+            if batch_normalization:
+                layers.append(BatchNorm1d(num_features=convolution_features[i + 1]))
             layers.append(activations[activation])
         if convolution_dropout > 0:
             layers.append(Dropout(convolution_dropout))
@@ -68,12 +69,17 @@ def _convolutions(
 
 
 def _linear(
-    features: list[int], activation: Module = Sigmoid(), last: bool = True
+    features: list[int],
+    activation: Module = Sigmoid(),
+    last: bool = True,
+    batch_normalization: bool = False,
 ) -> Sequential:
     """Create a sequence of linear layers."""
     layers = Sequential()
     for i in range(len(features) - 1):
         layers.append(Linear(features[i], features[i + 1]))
+        if batch_normalization:
+            layers.append(BatchNorm1d(num_features=features[i + 1]))
         if i < len(features) - 2 or last:
             layers.append(activation)
     return layers
@@ -207,3 +213,40 @@ class WarmupLR(_LRScheduler):
         for param_group, lr in zip(self.optimizer.param_groups, self.get_lr()):
             param_group["lr"] = lr
             print(lr)
+
+
+class DelayedEarlyStopping(pl.Callback):
+    def __init__(
+        self,
+        patience: int = 5,
+        monitor: str = "val_loss",
+        warmupES: int = 10,
+        min_delta=0.01,
+    ):
+        super().__init__()
+        self.patience = patience
+        self.monitor = monitor
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.warmupES = warmupES
+        self.min_delta = min_delta
+
+    def on_validation_end(self, trainer, pl_module):
+        print(trainer.global_step)
+        if trainer.global_step > self.warmupES:
+            current_score = trainer.callback_metrics.get(self.monitor)
+            if self.best_score is None:
+                self.best_score = current_score
+
+            elif self.min_delta > self.best_score - current_score:
+                self.counter += 1
+                if self.counter >= self.patience:
+                    self.early_stop = True
+
+            else:
+                self.best_score = current_score
+                self.counter = 0
+
+            if self.early_stop:
+                trainer.should_stop = True
