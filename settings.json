@@ -1,0 +1,5 @@
+{
+    "python.analysis.extraPaths": [
+        "./artifactory-master/src_jobs"
+    ]
+}
