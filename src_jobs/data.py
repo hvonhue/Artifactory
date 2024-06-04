@@ -5,13 +5,10 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
-import tsdb
 from artifact import Artifact
 from sliding_window_detector import SlidingWindowTransformerDetector
 from torch.utils.data import Dataset, IterableDataset
 
-# disable logging
-tsdb.utils.logging.logger.setLevel(logging.ERROR)
 
 
 class ArtifactDataset(IterableDataset):
@@ -200,7 +197,7 @@ class CenteredArtifactDataset(IterableDataset):
         width: int,
         padding: str | int = "center",
         weight: Optional[list[float]] = None,
-        p_has_artifact=0.5,
+        p_has_artifact: float = 0.5,
     ) -> None:
         """"""
         # properties
@@ -251,7 +248,7 @@ class CenteredArtifactDataset(IterableDataset):
             if window.sum() > 0.01:
                 break
         # determine whether sanple will have an artifact
-        has_artifact = self.rng.random() < self.p_has_artifact
+        has_artifact = self.rng.random() <= self.p_has_artifact
         if has_artifact:
             # generate artifact
             artifact, activation = self.artifact.generate()
@@ -272,6 +269,89 @@ class CenteredArtifactDataset(IterableDataset):
             "artifact": delta,
             "label": label,
         }
+
+
+class CenteredArtifactDataOnlyDataset(IterableDataset):
+    """Artifact dataset."""
+
+    def __init__(
+        self,
+        data: list[np.ndarray],
+        artifact: Artifact,
+        width: int,
+        padding: str | int = "center",
+        weight: Optional[list[float]] = None,
+        p_has_artifact: float = 0.5,
+    ) -> None:
+        """"""
+        # properties
+        self.data = data
+        self.artifact = artifact
+        self.width = width
+        # fixed position
+        self._position = width // 2
+        # padding
+        self.padding = padding
+        # random generator and weight for sampling
+        self.rng = np.random.default_rng()
+        self.weight = weight
+        self.p_has_artifact = p_has_artifact
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.generate()
+
+    def generate(self):
+        """Generate an artifact.
+
+        Ensures that each window has some activity.
+
+        Returns:
+            A dictionary containing the window, the artifact, the mask and the position.
+
+        """
+        # pick a sequence
+        # i = self.rng.integers(0, len(self.data) - 1)
+        i = self.rng.choice(len(self.data), p=self.weight)
+        sequence = self.data[i]
+        print(i)
+        # generate a window
+        windows_tried = 0
+        while True:
+            # only check 3 different windows for activity
+            # if all had no activity, choose another sequence
+            if windows_tried > 3:
+                i = self.rng.choice(len(self.data), p=self.weight)
+                sequence = self.data[i]
+                print(i)
+                windows_tried = 0
+                # break
+            seq_start = self.rng.integers(0, len(sequence) - self.width)
+            window = sequence[seq_start : seq_start + self.width]
+            windows_tried = windows_tried + 1
+            # check whether there is activity in the chosen window
+            if window.sum() > 0.01:
+                break
+        # determine whether sanple will have an artifact
+        has_artifact = self.rng.random() <= self.p_has_artifact
+        if has_artifact:
+            # generate artifact
+            artifact, activation = self.artifact.generate()
+            length = len(artifact)
+            # generate position
+            position_start = self._position - activation
+            # generate delta
+            delta = np.zeros_like(window, dtype=np.float32)
+            delta[position_start : position_start + length] = artifact
+            label = 1
+        else:
+            delta = np.zeros_like(window, dtype=np.float32)
+            label = 0
+
+        # return
+        return {"data": (window + delta), "label": label}
 
 
 class RejectionSamplingCenteredDataset(IterableDataset):
@@ -302,6 +382,8 @@ class RejectionSamplingCenteredDataset(IterableDataset):
         self.rng = np.random.default_rng()
         self.weight = weight
         self.p_has_artifact = p_has_artifact
+        # rejection parameter: Leave samples with high confidence out of sampling
+        # (confidence > 1 - rejection)
         self.rejection = rejection
 
     def __iter__(self):
@@ -358,9 +440,9 @@ class RejectionSamplingCenteredDataset(IterableDataset):
             # TODO: Konzept überarbeiten - Auch wenn confidence 0,
             # wird manchmal nicht genommen
             prediction = self.model(torch.tensor(window + delta).unsqueeze(0))
-            confidence = np.abs(label - prediction)
+            confidence = 1 - np.abs(label - prediction.detach().numpy())
             # sample more frequently if confidence is low
-            if 1 - confidence - self.refection > np.random.rand():
+            if 1 - confidence - self.rejection > np.random.rand():
                 break
 
         # return
