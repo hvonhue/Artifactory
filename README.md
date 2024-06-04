@@ -1,41 +1,24 @@
-[![CI:main](https://github.com/EliaGroup-Innersource/codespaces-template/actions/workflows/ci.yaml/badge.svg)](https://github.com/EliaGroup-Innersource/codespaces-template/actions/workflows/ci.yaml) [![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
-
 # Quick start
+ The quickest way to interact with the code is to open a github codespace. Due to limited storage possibilities the training on all datasets cannot be performed in the codespace.
+ It was also not possible to download all datasets to the github repository. Few sample datasets can be found in the data/processed folder.
+
+ If you have the files of the industry testing data, please upload them in the folder data/real.
 
 ## Requirements
 
-- [Poetry](https://python-poetry.org/)
-- [Python 3.11](https://www.python.org/downloads/release/python-3110/)
+- python 3.10
+
 
 ## Setup
 
-Setup instructions only apply if working on a local machine. 
+Github codespaces:
+You can run most functionalities in a github codespace (i.e. testing all presented models and recreating the measures shown)
+Due to limited storage, the datasets can (or only) temporarily be loaded into the codespace.
 
-If working in GitHub Codespaces, development environment is automatically configured.
-
-Configure and activate virtual environment:
-
+Locally:
+The requrements are stored in a conda.yaml file. To create an environment containing the dependencies, navigate to the folder containing the yaml file and run:
 ```console
-poetry env use /path/to/python3.11
-poetry shell
-```
-
-Install dependencies:
-
-```console
-poetry install
-```
-
-Install with optional development dependencies:
-
-```console
-poetry install --with dev
-```
-
-Install pre-commit hooks:
-
-```console
-pre-commit install
+conda env create -f conda.yaml
 ```
 
 ## Dependency management
