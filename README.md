@@ -79,3 +79,17 @@ python train_mask.py --input-path ../data/processed --val-path ../data/val_files
 Changes to the architecture can be performed in the top section of the according file. This includes changing the parameters of the FCN to the adapted FCN.
 
 The Isolation Forest ist trained and evaluated in the notebook IFOREST.
+
+## Data
+
+The Data included in this repository is taken from the UCR Time Series Classification Archive
+
+@misc{UCRArchive2018,
+        title = {The UCR Time Series Classification Archive},
+        author = {Dau, Hoang Anh and Keogh, Eamonn and Kamgar, Kaveh and Yeh, Chin-Chia Michael and Zhu, Yan 
+                  and Gharghabi, Shaghayegh and Ratanamahatana, Chotirat Ann and Yanping and Hu, Bing 
+                  and Begum, Nurjahan and Bagnall, Anthony and Mueen, Abdullah and Batista, Gustavo, and Hexagon-ML},
+        year = {2018},
+        month = {October},
+        note = {\url{https://www.cs.ucr.edu/~eamonn/time_series_data_2018/}}
+    }
