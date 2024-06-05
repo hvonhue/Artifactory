@@ -77,3 +77,5 @@ python train_mask.py --input-path ../data/processed --val-path ../data/val_files
 ```
 
 Changes to the architecture can be performed in the top section of the according file. This includes changing the parameters of the FCN to the adapted FCN.
+
+The Isolation Forest ist trained and evaluated in the notebook IFOREST.
