@@ -3,47 +3,58 @@ from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities import grad_norm
 from torch.nn import Dropout, Linear, TransformerEncoder, TransformerEncoderLayer
 from torch.nn.functional import mse_loss
-from torch.optim import Adam, AdamW
+from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchmetrics.classification import BinaryAccuracy, BinaryF1Score, BinaryFBetaScore
 
 
 class ConvolutionDetector(LightningModule):
-    """Use only convolutional layers."""
+    """Use only convolutional layers. Based on FCN"""
 
     def __init__(
         self,
+        window: int,
         convolution_features: list[int],
         convolution_width: list[int],
-        convolution_dilation: list[int],
         convolution_dropout: float = 0.0,
-        activation: str = "sigmoid",
+        pooling: str = "avg",
         loss: str = "mask",
+        loss_boost_fp: float = 0.2,
+        batch_normalization: bool = False,
+        warmup: int = 30,
     ):
         super().__init__()
+        self.window = window
         self.loss = loss
+        self.loss_boost_fp = loss_boost_fp
         self.save_hyperparameters()
         self.convolutions = _convolutions(
-            [1] + convolution_features,
-            convolution_width,
-            convolution_dilation,
-            convolution_dropout,
-            activation=activation,
+            convolution_features=[1] + convolution_features,
+            convolution_width=convolution_width,
+            convolution_dropout=convolution_dropout,
+            batch_normalization=batch_normalization,
+            activation="relu",
             pad=True,
         )
+        self.pooling = pooling
+        # final linear block to convert each
+        # feature to a single value
+        self.warmup = warmup
         self.f1_score = BinaryF1Score(multidim_average="global")
         self.accuracy = BinaryAccuracy(multidim_average="global")
-        # self.confusion_matrix = BinaryConfusionMatrix()
+        self.fbeta_score = BinaryFBetaScore(beta=0.5)
 
     def forward(self, x):
         """
         Input: (batch, window)
         Output: (batch, window)
         """
-        print("forward")
         x = x.unsqueeze(1)
         x = self.convolutions(x)
-        x = x.max(dim=1)[0]
+        if self.pooling == "max":
+            x = x.max(1)[0]
+        else:
+            x = x.mean(1)
         return x.squeeze()
 
     def training_step(self, batch, _):
@@ -51,32 +62,47 @@ class ConvolutionDetector(LightningModule):
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
+        if self.loss_boost_fp > 0 and self.loss_boost_fp <= 1:
+            loss_fp = mse_loss(y[m == 0], m[m == 0])
+            loss += self.loss_boost_fp * loss_fp
+            self.log("train_fp", loss_fp.item())
         accuracy = self.accuracy(y, m)
         f1_score = self.f1_score(y, m)
+        fbeta_score = self.fbeta_score(y, m)
 
-        # conf_mat = self.confusion_matrix(y, m)
-        self.log("train", loss.item())
-        self.log("train_accuracy", accuracy)
-        self.log("train_f1_score", f1_score)
-
+        self.log_dict(
+            {
+                "train_loss": loss.item(),
+                "train_accuracy": accuracy,
+                "train_f1_score": f1_score,
+                "train_fbeta_score": fbeta_score,
+            },
+            on_step=True,
+            on_epoch=False,
+            prog_bar=True,
+        )
         return loss
 
     def validation_step(self, batch, _):
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
-        loss_fp = mse_loss(y[m == 0], m[m == 0])
+        if self.loss_boost_fp > 0 and self.loss_boost_fp <= 1:
+            loss_fp = mse_loss(y[m == 0], m[m == 0])
+            loss += self.loss_boost_fp * loss_fp
+        fbeta_score = self.fbeta_score(y, m)
         self.log("validation", loss.item())
         self.log("validation_fp", loss_fp.item())
+        self.log("val_fbeta", fbeta_score)
         return loss
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=1e-3)
+        optimizer = Adam(self.parameters(), lr=1e-2)
         scheduler = ReduceLROnPlateau(
             optimizer,
             mode="min",
             factor=0.1,
-            patience=1,
+            patience=3,
             min_lr=1e-6,
             verbose=True,
         )
@@ -85,7 +111,7 @@ class ConvolutionDetector(LightningModule):
             "lr_scheduler": {
                 "scheduler": scheduler,
                 "interval": "step",
-                "frequency": 1000,
+                "frequency": 500,
                 "name": "learning_rate",
                 "strict": True,
                 "monitor": "validation",
@@ -108,8 +134,8 @@ class WindowTransformerDetector(LightningModule):
         transformer_layers: int,
         transformer_dropout: float,
         loss: str = "mask",
-        loss_boost_fp: float = 0.5,
-        warmup: int = 15000,
+        loss_boost_fp: float = 0.2,
+        warmup: int = 30,
     ):
         super().__init__()
         self.window = window
@@ -140,8 +166,8 @@ class WindowTransformerDetector(LightningModule):
         # feature to a single value
         self.linear = Linear(convolution_features[-1], 1)
         self.warmup = warmup
-        self.f1_score = BinaryF1Score(multidim_average="global")
-        self.accuracy = BinaryAccuracy(multidim_average="global")
+        self.f1_score = BinaryF1Score()
+        self.accuracy = BinaryAccuracy()
         self.fbeta_score = BinaryFBetaScore(beta=0.5)
 
     def forward(self, x):
@@ -183,7 +209,7 @@ class WindowTransformerDetector(LightningModule):
                 "train_fbeta_score": fbeta_score,
             },
             on_step=True,
-            on_epoch=True,
+            on_epoch=False,
             prog_bar=True,
         )
         self.log("train", loss.item())
@@ -193,15 +219,17 @@ class WindowTransformerDetector(LightningModule):
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
-        loss_fp = mse_loss(y[m == 0], m[m == 0])
+        if self.loss_boost_fp > 0 and self.loss_boost_fp <= 1:
+            loss_fp = mse_loss(y[m == 0], m[m == 0])
+            loss += self.loss_boost_fp * loss_fp
+            self.log("validation_fp", loss_fp.item())
         fbeta_score = self.fbeta_score(y, m)
         self.log("validation", loss.item())
         self.log("val_fbeta", fbeta_score)
-        self.log("validation_fp", loss_fp.item())
         return loss
 
     def configure_optimizers(self):
-        optimizer = AdamW(self.parameters(), lr=1e-3)
+        optimizer = Adam(self.parameters(), lr=1e-1)
         scheduler = WarmupLR(
             optimizer,
             warmup_steps=self.warmup,
@@ -235,7 +263,8 @@ class WindowLinearDetector(LightningModule):
         linear_dropout: float = 0,
         linear_layers: list[int] | None = None,
         loss: str = "mask",
-        loss_boost_fp: float = 0.0,
+        loss_boost_fp: float = 0.2,
+        warmup: int = 30,
     ):
         super().__init__()
         self.window = window
@@ -256,6 +285,10 @@ class WindowLinearDetector(LightningModule):
         self.linear = _linear(
             [convolution_features[-1] * window, *(linear_layers or list()), window]
         )
+        self.warmup = warmup
+        self.f1_score = BinaryF1Score()
+        self.accuracy = BinaryAccuracy()
+        self.fbeta_score = BinaryFBetaScore(beta=0.5)
 
     def forward(self, x):
         """
@@ -277,6 +310,20 @@ class WindowLinearDetector(LightningModule):
             loss_fp = mse_loss(y[m == 0], m[m == 0])
             loss += self.loss_boost_fp * loss_fp
             self.log("train_fp", loss_fp.item())
+        accuracy = self.accuracy(y, m)
+        f1_score = self.f1_score(y, m)
+        fbeta_score = self.fbeta_score(y, m)
+        self.log_dict(
+            {
+                "train_loss": loss.item(),
+                "train_accuracy": accuracy,
+                "train_f1_score": f1_score,
+                "train_fbeta_score": fbeta_score,
+            },
+            on_step=True,
+            on_epoch=False,
+            prog_bar=True,
+        )
         self.log("train", loss.item())
         return loss
 
@@ -284,18 +331,24 @@ class WindowLinearDetector(LightningModule):
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
-        loss_fp = mse_loss(y[m == 0], m[m == 0])
+        if self.loss_boost_fp > 0 and self.loss_boost_fp <= 1:
+            loss_fp = mse_loss(y[m == 0], m[m == 0])
+            loss += self.loss_boost_fp * loss_fp
+            self.log("val_fp", loss_fp.item())
+        self.accuracy(y, m)
+        self.f1_score(y, m)
+        fbeta_score = self.fbeta_score(y, m)
         self.log("validation", loss.item())
-        self.log("validation_fp", loss_fp.item())
+        self.log("val_fbeta", fbeta_score)
         return loss
 
     def configure_optimizers(self):
-        optimizer = AdamW(self.parameters(), lr=1e-2)
+        optimizer = Adam(self.parameters(), lr=1e-2)
         scheduler = ReduceLROnPlateau(
             optimizer,
             mode="min",
             factor=0.1,
-            patience=1,
+            patience=10,
             min_lr=1e-6,
             verbose=True,
         )
@@ -304,10 +357,10 @@ class WindowLinearDetector(LightningModule):
             "lr_scheduler": {
                 "scheduler": scheduler,
                 "interval": "step",
-                "frequency": 1000,
+                "frequency": 500,
                 "name": "learning_rate",
                 "strict": True,
-                "monitor": "validation",
+                "monitor": "val_fbeta",
             },
         }
 
