@@ -1,5 +1,5 @@
 """
-python train_FCN_dense:slidingWindow.py --input-path ../data/processed --val-path ../data/val_files/val_SW_noCiECGT512.pkl --output-path ../data/output
+python train_FCN_dense_slidingWindow.py --input-path ../data/processed --val-path ../data/val_files/val_SW_noCiECGT512.pkl --output-path ../data/output
 """
 import pickle
 import warnings
