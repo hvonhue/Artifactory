@@ -66,26 +66,26 @@ run_name = model_name
 
 train_datasets = [
     # # 'CinCECGTorso', # do not train on this dataset for validation purposes
-    # "ETTm",  # 1
-    # "ETTh",  # 2
-    # "electricity_load_diagrams",  # 3
-    # "australian_electricity_demand_dataset",  # 4
-    # "Phoneme",  # 5
-    # "electricity_hourly_dataset",  # 6
-    # "HouseholdPowerConsumption1",  # 7
-    # "london_smart_meters_dataset_without_missing_values",  # 8
+    "ETTm",  # 1
+    "ETTh",  # 2
+    "electricity_load_diagrams",  # 3
+    "australian_electricity_demand_dataset",  # 4
+    "Phoneme",  # 5
+    "electricity_hourly_dataset",  # 6
+    "HouseholdPowerConsumption1",  # 7
+    "london_smart_meters_dataset_without_missing_values",  # 8
     "SemgHandGenderCh2",  # 9
     "PigCVP",  # 10
-    # "HouseTwenty",  # 11
-    # "wind_farms_minutely_dataset_without_missing_values",  # 12
-    # "ptbdb",  # 13
-    # "mitbih",  # 14
-    # "PigArtPressure",  # 15
-    # "solar_10_minutes_dataset",  # 16
-    # "Mallat",  # 17
-    # "MixedShapesRegularTrain",  # 18
-    # "Rock",  # 19
-    # "ACSF1",  # 20
+    "HouseTwenty",  # 11
+    "wind_farms_minutely_dataset_without_missing_values",  # 12
+    "ptbdb",  # 13
+    "mitbih",  # 14
+    "PigArtPressure",  # 15
+    "solar_10_minutes_dataset",  # 16
+    "Mallat",  # 17
+    "MixedShapesRegularTrain",  # 18
+    "Rock",  # 19
+    "ACSF1",  # 20
 ]
 print(model_name)
 
@@ -94,10 +94,13 @@ def load_series(names: list[str], split: str, path: str):
     series: list[np.ndarray] = list()
     counts: list[float] = list()
     for name in names:
-        with open(f"{path}/{name}_{split}.pickle", "rb") as f:
-            raw = [a for a in pickle.load(f) if len(a) > width]
-            series.extend(np.array(a).astype(np.float32) for a in raw)
-            counts.extend(repeat(1 / len(raw), len(raw)))
+        try:
+            with open(f"{path}/{name}_{split}.pickle", "rb") as f:
+                raw = [a for a in pickle.load(f) if len(a) > width]
+                series.extend(np.array(a).astype(np.float32) for a in raw)
+                counts.extend(repeat(1 / len(raw), len(raw)))
+        except:
+            print(f"Dataset {name} not in input folder!")
     counts = np.array(counts)
     return series, np.divide(counts, np.sum(counts))
 
@@ -110,8 +113,9 @@ def main(
 ):
     """
     Args:
-        input_path (Path): directory containing images (patches / dataset)
+        input_path (Path): directory containing datasets
         val_path (Path): directory containig validation file, in case it was already created
+        output_path (Path): directory where to store the trained model
     """
     # Check GPU connection:
     print("GPU: %s", torch.device("cuda" if torch.cuda.is_available() else "cpu"))

@@ -102,8 +102,9 @@ def main(
 ):
     """
     Args:
-        input_path (Path): directory containing images (patches / dataset)
+        input_path (Path): directory containing datasets
         val_path (Path): directory containig validation file, in case it was already created
+        output_path (Path): directory where to store the trained model
     """
 
     # Check input arguments are right:
