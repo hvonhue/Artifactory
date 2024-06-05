@@ -22,7 +22,7 @@ Due to limited storage, the datasets can (or only) temporarily be loaded into th
 Locally:
 The requrements are stored in a conda.yaml file. To create an environment containing the dependencies, navigate to the folder containing the yaml file and run:
 ```console
-conda env create -f conda.yaml
+conda env create -f conda.yml
 ```
 
 
