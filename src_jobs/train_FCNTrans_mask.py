@@ -1,5 +1,5 @@
 """
-python train_mask.py --input-path /workspaces/AICoE_Ramping_Artefacts/artifactory-master/data/processed --val-path /workspaces/AICoE_Ramping_Artefacts/artifactory-master/data/validation512.all_old.pkl --output-path /workspaces/AICoE_Ramping_Artefacts/artifactory-master/data/output
+python train_mask.py --input-path ../data/processed --val-path ../data/val_files/val_mask_noCiECGT512.pkl --output-path ../data/output
 """
 import pickle
 import warnings

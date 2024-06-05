@@ -1,5 +1,5 @@
 """
-python train_sliding_window.py --input-path /workspaces/AICoE_Ramping_Artefacts/artifactory-master/data/processed --val-path /workspaces/AICoE_Ramping_Artefacts/artifactory-master/data/validation_slidingWindow_noLondon512.pkl --output-path /workspaces/AICoE_Ramping_Artefacts/artifactory-master/data/output
+python train_sliding_window.py --input-path ../data/processed --val-path ../data/val_files/val_SW_noCiECGT512.pkl --output-path ../data/output
 """
 
 import pickle
