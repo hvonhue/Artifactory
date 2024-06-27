@@ -22,7 +22,7 @@ Due to limited storage, the datasets can (or only) temporarily be loaded into th
 Locally:
 The requrements are stored in a conda.yaml file. To create an environment containing the dependencies, navigate to the folder containing the yaml file and run:
 ```console
-conda env create -f conda.yaml
+conda env create -f conda.yml
 ```
 
 
@@ -79,3 +79,9 @@ python train_mask.py --input-path ../data/processed --val-path ../data/val_files
 Changes to the architecture can be performed in the top section of the according file. This includes changing the parameters of the FCN to the adapted FCN.
 
 The Isolation Forest ist trained and evaluated in the notebook IFOREST.
+
+## Data
+
+The Data included in this repository is taken from the UCR Time Series Classification Archive
+
+DAU, Hoang Anh, et al. The UCR time series archive. IEEE/CAA Journal of Automatica Sinica, 2019, 6. Jg., Nr. 6, S. 1293-1305.
