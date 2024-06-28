@@ -1,7 +1,7 @@
-train\_FCN\_dense\_slidingWindow module
+artitect.train\_FCN\_dense\_mask module
 =======================================
 
-.. automodule:: train_FCN_dense_slidingWindow
+.. automodule:: artitect.train_FCN_dense_mask
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,7 +1,7 @@
-train\_FCN\_dense\_mask module
+artitect.mask\_detector module
 ==============================
 
-.. automodule:: train_FCN_dense_mask
+.. automodule:: artitect.mask_detector
    :members:
    :undoc-members:
    :show-inheritance:

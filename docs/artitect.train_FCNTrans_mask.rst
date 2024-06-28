@@ -1,7 +1,7 @@
-train\_FCNTrans\_slidingWindow module
+artitect.train\_FCNTrans\_mask module
 =====================================
 
-.. automodule:: train_FCNTrans_slidingWindow
+.. automodule:: artitect.train_FCNTrans_mask
    :members:
    :undoc-members:
    :show-inheritance:

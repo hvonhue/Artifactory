@@ -1,7 +1,7 @@
-train\_TransOnly\_slidingWindow module
+artitect.train\_TransOnly\_mask module
 ======================================
 
-.. automodule:: train_TransOnly_slidingWindow
+.. automodule:: artitect.train_TransOnly_mask
    :members:
    :undoc-members:
    :show-inheritance:

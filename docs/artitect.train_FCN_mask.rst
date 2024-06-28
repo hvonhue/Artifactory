@@ -1,7 +1,7 @@
-sliding\_window\_detector module
+artitect.train\_FCN\_mask module
 ================================
 
-.. automodule:: sliding_window_detector
+.. automodule:: artitect.train_FCN_mask
    :members:
    :undoc-members:
    :show-inheritance:
