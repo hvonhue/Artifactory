@@ -19,6 +19,24 @@ extensions = []
 templates_path = ['_templates']
 exclude_patterns = []
 
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx_autodoc_typehints",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.ifconfig",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.todo",
+    # 'sphinx.ext.intersphinx',
+    # 'sphinx.ext.doctest'
+]
+
+
+# source_suffix = ['.rst', '.md']
+source_suffix = ".rst"
+
+# The master toctree document.
+master_doc = "index"
 
 
 # -- Options for HTML output -------------------------------------------------
