@@ -12,7 +12,7 @@ import numpy as np
 import torch
 import typer
 from artitect.artifact import Saw
-from data import CachedArtifactDataset, RealisticArtifactDataset
+from artitect.data import CachedArtifactDataset, RealisticArtifactDataset
 from artitect.mask_detector import WindowLinearDetector
 from artitect.modeling import DelayedEarlyStopping
 from pytorch_lightning import Trainer

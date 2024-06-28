@@ -11,8 +11,8 @@ import mlflow
 import numpy as np
 import torch
 import typer
-from artifact import Saw_centered
-from data import CachedArtifactDataset, CenteredArtifactDataset
+from artitect.artifact import Saw_centered
+from artitect.data import CachedArtifactDataset, CenteredArtifactDataset
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     EarlyStopping,
@@ -20,9 +20,9 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import MLFlowLogger
-from sliding_window_detector import SlidingWindowLinearDetector
+from artitect.sliding_window_detector import SlidingWindowLinearDetector
 from torch.utils.data import DataLoader
-from utilities import parameters_k
+from artitect.utilities import parameters_k
 
 # stop warnings
 torch.set_float32_matmul_precision("high")

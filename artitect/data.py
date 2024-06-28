@@ -5,8 +5,8 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
-from artifact import Artifact
-from sliding_window_detector import SlidingWindowTransformerDetector
+from artitect.artifact import Artifact
+from artitect.sliding_window_detector import SlidingWindowTransformerDetector
 from torch.utils.data import Dataset, IterableDataset
 
 
