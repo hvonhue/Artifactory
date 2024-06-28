@@ -46,8 +46,8 @@ class ConvolutionDetector(LightningModule):
 
     def forward(self, x):
         """
-        Input: (batch, window)
-        Output: (batch, window)
+        :param x: input of size (batch, window)
+        :return: output of size (batch, window)
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -58,6 +58,8 @@ class ConvolutionDetector(LightningModule):
         return x.squeeze()
 
     def training_step(self, batch, _):
+        """
+        """
         # Your normal training operations
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
@@ -81,9 +83,13 @@ class ConvolutionDetector(LightningModule):
             on_epoch=False,
             prog_bar=True,
         )
+
         return loss
 
     def validation_step(self, batch, _):
+        """
+        validation step
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
@@ -94,9 +100,13 @@ class ConvolutionDetector(LightningModule):
         self.log("validation", loss.item())
         self.log("validation_fp", loss_fp.item())
         self.log("val_fbeta", fbeta_score)
+
         return loss
 
     def configure_optimizers(self):
+        """
+        :return: dict
+        """
         optimizer = Adam(self.parameters(), lr=1e-2)
         scheduler = ReduceLROnPlateau(
             optimizer,
@@ -106,6 +116,7 @@ class ConvolutionDetector(LightningModule):
             min_lr=1e-6,
             verbose=True,
         )
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -117,6 +128,9 @@ class ConvolutionDetector(LightningModule):
                 "monitor": "validation",
             },
         }
+    
+    def on_before_optimizer_step(self, _):
+        self.log_dict(grad_norm(self, norm_type=2))
 
 
 class WindowTransformerDetector(LightningModule):
@@ -172,8 +186,8 @@ class WindowTransformerDetector(LightningModule):
 
     def forward(self, x):
         """
-        Input: (batch, window)
-        Output: (batch, window)
+        :param x: input of size (batch, window)
+        :return: output of size (batch, window)
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -188,6 +202,7 @@ class WindowTransformerDetector(LightningModule):
         x = self.transformer(x)
         # convert output tokens back to predictions
         x = self.linear(x)
+
         return x.squeeze()
 
     def training_step(self, batch, _):
@@ -213,6 +228,7 @@ class WindowTransformerDetector(LightningModule):
             prog_bar=True,
         )
         self.log("train", loss.item())
+
         return loss
 
     def validation_step(self, batch, _):
@@ -226,6 +242,7 @@ class WindowTransformerDetector(LightningModule):
         fbeta_score = self.fbeta_score(y, m)
         self.log("validation", loss.item())
         self.log("val_fbeta", fbeta_score)
+        
         return loss
 
     def configure_optimizers(self):
@@ -292,8 +309,8 @@ class WindowLinearDetector(LightningModule):
 
     def forward(self, x):
         """
-        Input: (batch, window)
-        Output: (batch, window)
+        :param x: input of size (batch, window)
+        :return: output of size (batch, window)
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
