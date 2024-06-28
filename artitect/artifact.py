@@ -2,7 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Tuple
 
 import numpy as np
-
+"""
+Artifact module
+"""
 
 class Artifact(ABC):
     """Base class for artifacts."""
