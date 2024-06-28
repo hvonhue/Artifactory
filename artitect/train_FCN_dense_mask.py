@@ -11,15 +11,15 @@ import mlflow
 import numpy as np
 import torch
 import typer
-from src.artifact import Saw
+from artitect.artifact import Saw
 from data import CachedArtifactDataset, RealisticArtifactDataset
-from src.mask_detector import WindowLinearDetector
-from src.modeling import DelayedEarlyStopping
+from artitect.mask_detector import WindowLinearDetector
+from artitect.modeling import DelayedEarlyStopping
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import MLFlowLogger
 from torch.utils.data import DataLoader
-from src.utilities import parameters_k
+from artitect.utilities import parameters_k
 
 # stop warnings
 torch.set_float32_matmul_precision("high")
