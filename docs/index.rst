@@ -21,9 +21,6 @@ Github: https://github.com/hvonhue/Artifactory
    modules
 
 
-
-
-
 Indices and tables
 ==================
 

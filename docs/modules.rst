@@ -1,4 +1,4 @@
-src_jobs
+src
 ========
 
 .. toctree::
@@ -10,6 +10,15 @@ src_jobs
    mask_detector
    modeling
    sliding_window_detector
+   utilities
+
+
+train
+========
+
+.. toctree::
+   :maxdepth: 4
+
    train_FCNTrans_mask
    train_FCNTrans_slidingWindow
    train_FCN_dense_mask
@@ -18,4 +27,3 @@ src_jobs
    train_FCN_slidingWindow
    train_TransOnly_mask
    train_TransOnly_slidingWindow
-   utilities
