@@ -15,7 +15,7 @@ Github: https://github.com/hvonhue/Artifactory
    guide/overview
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
    :caption: Modules:
 
    modules
