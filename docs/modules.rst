@@ -2,7 +2,7 @@ src
 ========
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    artifact
    data
@@ -17,7 +17,7 @@ train
 ========
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
    train_FCNTrans_mask
    train_FCNTrans_slidingWindow
