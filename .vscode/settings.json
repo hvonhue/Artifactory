@@ -1,5 +1,5 @@
-{
-    "python.analysis.extraPaths": [
-        "./artifactory-master/src_jobs"
-    ]
-}
+// {
+//     "python.analysis.extraPaths": [
+//         "./artifactory-master/src_jobs"
+//     ]
+// }
