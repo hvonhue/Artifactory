@@ -6,7 +6,7 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, os.path.abspath('../src'))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -21,7 +21,7 @@ release = '04.06.2024'
 
 extensions = ["sphinx.ext.autodoc",
     "sphinx_autodoc_typehints",
-    "sphinx.ext.autosummary",
+    # "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
     "sphinx.ext.viewcode",
