@@ -23,8 +23,8 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
-from ..artifact.artifact import Artifact
-from ..detector.sliding_window_detector import SlidingWindowTransformerDetector
+from src.artifact.artifact import Artifact
+from src.detector.sliding_window_detector import SlidingWindowTransformerDetector
 from torch.utils.data import Dataset, IterableDataset
 
 
