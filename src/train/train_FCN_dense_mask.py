@@ -1,5 +1,5 @@
 """
-python train_FCN_mask.py --input-path ../data/processed --val-path ../data/val_files/val_mask_noCiECGT512.pkl --output-path ../data/output
+python train_FCN_dense_mask.py --input-path ../data/processed --val-path ../data/val_files/val_mask_noCiECGT512.pkl --output-path ../data/output
 """
 import pickle
 import warnings
@@ -11,48 +11,46 @@ import mlflow
 import numpy as np
 import torch
 import typer
-from artitect.artifact import Saw
-from artitect.data import CachedArtifactDataset, RealisticArtifactDataset
-from artitect.mask_detector import ConvolutionDetector
-from artitect.modeling import DelayedEarlyStopping
+from src.artifact.artifact import Saw
+from src.data.data import CachedArtifactDataset, RealisticArtifactDataset
+from src.detector.mask_detector import WindowLinearDetector
+from src.modeling.modeling import DelayedEarlyStopping
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import MLFlowLogger
 from torch.utils.data import DataLoader
-from artitect.utilities import parameters_k
+from src.modeling.utilities import parameters_k
 
 # stop warnings
 torch.set_float32_matmul_precision("high")
 warnings.filterwarnings("ignore", ".*does not have many workers.*")
 
-# width of window
+# # width of window
 width = 512
-convolution_features = [256, 128, 64, 32]  # [256, 128, 64, 32] # [128, 256, 128]
-convolution_width = [5, 9, 17, 33]  # [5, 9, 17, 33] # [8, 5, 3]
+convolution_features = [256, 128, 64, 32]  # [256, 128, 64, 32] adapted FCN # [128, 256, 128] FCN
+convolution_width = [5, 9, 17, 33]  # [5, 9, 17, 33] adapted FCN # [8, 5, 3] FCN
 convolution_dropout = 0.0
-batch_normalization = True
-loss = "mask"
+linear_layers = [64, 64]
+loss = "mask"  # "mask" for mask detector, "label for sliding window"
 loss_boost_fp = 0.2
 artifact = Saw()
-warmup = 30
 batch_size = 32  # 'values': [32, 64, 128]
+warmup = 30
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
 
 # model
-model = ConvolutionDetector(
+model = WindowLinearDetector(
     window=width,
     convolution_features=convolution_features,
     convolution_width=convolution_width,
-    convolution_dropout=convolution_dropout,
+    convolution_dropout=0.0,
+    linear_layers=linear_layers,
     loss=loss,
     loss_boost_fp=loss_boost_fp,
-    batch_normalization=batch_normalization,
     warmup=warmup,
 )
-
-model_name = f"{model.__class__.__name__}_{parameters_k(model)}_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
+model_name = f"{model.__class__.__name__}_{loss}_{parameters_k(model)}_{datetime.now().strftime('%d-%m-%Y_%H:%M:%S')}"
 run_name = model_name
 
 train_datasets = [
@@ -108,8 +106,6 @@ def main(
         val_path (Path): directory containig validation file, in case it was already created
         output_path (Path): directory where to store the trained model
     """
-    # Check GPU connection:
-    print("GPU: %s", torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
     # Check input arguments are right:
     assert (
@@ -120,17 +116,31 @@ def main(
     logger = MLFlowLogger(
         log_model="all",
         run_name=model_name,
-        experiment_name="artifactory_FCN_mask_detector",
+        experiment_name="artifactory_Dense_detector",
         tracking_uri=mlflow.get_tracking_uri(),
     )
 
     # validation
     val_file = Path(f"{val_path}")
-    val = CachedArtifactDataset(file=val_file)
+
+    if not val_file.exists():
+        f"'val_file' at provided 'val_path' directory ({val_path}) doesn't exist! Creating validation file..."
+        val_data, val_weights = load_series(train_datasets, "VAL", str(input_path))
+        val_gen = RealisticArtifactDataset(
+            val_data,
+            width=width,
+            padding=64,
+            artifact=artifact,
+            weight=val_weights,
+        )
+        val = CachedArtifactDataset.generate(val_gen, n=2048, to=val_file)
+    else:
+        val = CachedArtifactDataset(file=val_file)
     val_loader = DataLoader(val, batch_size=batch_size)
 
     # train
     train_data, train_weights = load_series(train_datasets, "TRAIN", str(input_path))
+    print("Dataset")
     train_dataset = RealisticArtifactDataset(
         train_data,
         width=width,
@@ -142,7 +152,7 @@ def main(
 
     # sanity check
     batch = next(iter(train_loader))
-    batch["data"]
+    print(batch["data"])
 
     # initialize callbacks
     checkpointcallback = ModelCheckpoint(
@@ -160,13 +170,14 @@ def main(
         logger=logger,
         max_steps=50000,
         val_check_interval=500,
-        callbacks=[checkpointcallback, lr_monitor, early_stop_callback],
+        callbacks=[checkpointcallback, early_stop_callback, lr_monitor],
     )
+    print("Initialized trainer.")
 
     # Auto log all MLflow entities
     mlflow.pytorch.autolog(log_every_n_step=500)
 
-    print("Starting training.")
+    print("Fit")
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     print("Training completed.")

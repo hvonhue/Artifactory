@@ -27,7 +27,7 @@ exclude_patterns = ['_build']
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx_autodoc_typehints",
-    # "sphinx.ext.autosummary",
+    "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
     "sphinx.ext.viewcode",

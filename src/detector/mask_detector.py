@@ -1,4 +1,4 @@
-from artitect.modeling import SinusoidalPositionEmbedding, WarmupLR, _convolutions, _linear
+from src.modeling.modeling import SinusoidalPositionEmbedding, WarmupLR, _convolutions, _linear
 from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities import grad_norm
 from torch.nn import Dropout, Linear, TransformerEncoder, TransformerEncoderLayer

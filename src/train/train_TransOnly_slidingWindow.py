@@ -1,5 +1,5 @@
 """
-python train_FCN_dense_mask.py --input-path ../data/processed --val-path ../data/val_files/val_mask_noCiECGT512.pkl --output-path ../data/output
+python train_TransOnly_slidingWindow.py --input-path ../data/processed --val-path ../data/val_files/val_SW_noCiECGT512.pkl --output-path ../data/output
 """
 import pickle
 import warnings
@@ -7,19 +7,20 @@ from datetime import datetime
 from itertools import repeat
 from pathlib import Path
 
+from typing import List
 import mlflow
 import numpy as np
 import torch
 import typer
-from artitect.artifact import Saw
-from artitect.data import CachedArtifactDataset, RealisticArtifactDataset
-from artitect.mask_detector import WindowLinearDetector
-from artitect.modeling import DelayedEarlyStopping
+from src.artifact.artifact import Saw_centered
+from src.data.data import CachedArtifactDataset, CenteredArtifactDataset
+from src.modeling.modeling import DelayedEarlyStopping
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import MLFlowLogger
+from src.detector.sliding_window_detector import SlidingWindowTransformerDetector
 from torch.utils.data import DataLoader
-from artitect.utilities import parameters_k
+from src.modeling.utilities import parameters_k
 
 # stop warnings
 torch.set_float32_matmul_precision("high")
@@ -27,25 +28,35 @@ warnings.filterwarnings("ignore", ".*does not have many workers.*")
 
 # # width of window
 width = 512
-convolution_features = [256, 128, 64, 32]  # [256, 128, 64, 32] adapted FCN # [128, 256, 128] FCN
-convolution_width = [5, 9, 17, 33]  # [5, 9, 17, 33] adapted FCN # [8, 5, 3] FCN
+convolution_features = [32]  # small input embedding to mostly determine performance of transformer blocks
+convolution_width = [8]
 convolution_dropout = 0.0
-linear_layers = [64, 64]
-loss = "mask"  # "mask" for mask detector, "label for sliding window"
+conv_pool_kernel = 4
+transformer_heads = 8  # embedding dimension must be divisible by number of heads
+transformer_feedforward = 256
+transformer_layers = 4
+transformer_dropout = 0
+pooling = "avg"
+loss = "label"  # "mask" for mask detector, "label for sliding window"
 loss_boost_fp = 0.2
-artifact = Saw()
+artifact = Saw_centered()
 batch_size = 32  # 'values': [32, 64, 128]
 warmup = 30
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # model
-model = WindowLinearDetector(
+model = SlidingWindowTransformerDetector(
     window=width,
     convolution_features=convolution_features,
     convolution_width=convolution_width,
-    convolution_dropout=0.0,
-    linear_layers=linear_layers,
+    convolution_dropout=convolution_dropout,
+    transformer_heads=transformer_heads,
+    transformer_feedforward=transformer_feedforward,
+    transformer_layers=transformer_layers,
+    transformer_dropout=transformer_dropout,
+    conv_pool_kernel=conv_pool_kernel,
+    pooling=pooling,
     loss=loss,
     loss_boost_fp=loss_boost_fp,
     warmup=warmup,
@@ -54,7 +65,7 @@ model_name = f"{model.__class__.__name__}_{loss}_{parameters_k(model)}_{datetime
 run_name = model_name
 
 train_datasets = [
-    # 'CinCECGTorso', # do not train on this dataset for validation purposes
+    # # 'CinCECGTorso', # do not train on this dataset for validation purposes
     "ETTm",  # 1
     "ETTh",  # 2
     "electricity_load_diagrams",  # 3
@@ -106,6 +117,8 @@ def main(
         val_path (Path): directory containig validation file, in case it was already created
         output_path (Path): directory where to store the trained model
     """
+    # Check GPU connection:
+    print("GPU: %s", torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
     # Check input arguments are right:
     assert (
@@ -116,17 +129,16 @@ def main(
     logger = MLFlowLogger(
         log_model="all",
         run_name=model_name,
-        experiment_name="artifactory_Dense_detector",
+        experiment_name="artifactory_transformer_detector",
         tracking_uri=mlflow.get_tracking_uri(),
     )
 
     # validation
     val_file = Path(f"{val_path}")
-
     if not val_file.exists():
         f"'val_file' at provided 'val_path' directory ({val_path}) doesn't exist! Creating validation file..."
         val_data, val_weights = load_series(train_datasets, "VAL", str(input_path))
-        val_gen = RealisticArtifactDataset(
+        val_gen = CenteredArtifactDataset(
             val_data,
             width=width,
             padding=64,
@@ -141,18 +153,15 @@ def main(
     # train
     train_data, train_weights = load_series(train_datasets, "TRAIN", str(input_path))
     print("Dataset")
-    train_dataset = RealisticArtifactDataset(
+    train_dataset = CenteredArtifactDataset(
         train_data,
         width=width,
         padding=64,
         artifact=artifact,
         weight=train_weights,
+        p_has_artifact=0.5,
     )
     train_loader = DataLoader(train_dataset, batch_size=batch_size)
-
-    # sanity check
-    batch = next(iter(train_loader))
-    print(batch["data"])
 
     # initialize callbacks
     checkpointcallback = ModelCheckpoint(
@@ -170,7 +179,7 @@ def main(
         logger=logger,
         max_steps=50000,
         val_check_interval=500,
-        callbacks=[checkpointcallback, early_stop_callback, lr_monitor],
+        callbacks=[checkpointcallback, lr_monitor, early_stop_callback],
     )
     print("Initialized trainer.")
 

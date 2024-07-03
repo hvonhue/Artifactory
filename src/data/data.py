@@ -1,3 +1,21 @@
+"""
+This module contains classes for creating and handling datasets of artifacts for 
+machine learning models. The main classes included are:
+
+- ArtifactDataset: Generates artifacts and sequences of data with optional padding and weighting.
+- RealisticArtifactDataset: Ensures more realistic artifact generation by considering activity in windows.
+- CenteredArtifactDataset: Centers artifacts within the data windows and includes options for the presence of artifacts.
+- CenteredArtifactDataOnlyDataset: Similar to CenteredArtifactDataset but focuses only on the data with artifacts included.
+- RejectionSamplingCenteredDataset: Uses rejection sampling to generate data sequences with artifacts.
+- TestArtifactDataset: A test dataset containing data sequences and labels, supporting both data and file input.
+- CachedArtifactDataset: Caches generated artifact data for reuse and quick access.
+- load_files: Utility function to load data from multiple files.
+- load_file: Utility function to load data from a single file.
+
+These classes are designed to facilitate the creation and manipulation of datasets for training 
+and evaluating machine learning models, particularly in the context of detecting artifacts within data sequences.
+"""
+
 import logging
 import pickle
 from pathlib import Path
@@ -5,14 +23,23 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
-from artitect.artifact import Artifact
-from artitect.sliding_window_detector import SlidingWindowTransformerDetector
+from src.artifact.artifact import Artifact
+from src.detector.sliding_window_detector import SlidingWindowTransformerDetector
 from torch.utils.data import Dataset, IterableDataset
 
 
 
 class ArtifactDataset(IterableDataset):
-    """Artifact dataset."""
+    """
+    Artifact dataset.
+
+    Args:
+        data (list[np.ndarray]): List of numpy arrays representing the data.
+        artifact (Artifact): The artifact generator instance.
+        width (int): The width of the data window.
+        padding (str | int, optional): The padding type or size. Defaults to "center".
+        weight (Optional[list[float]], optional): Weights for sampling. Defaults to None.
+    """
 
     def __init__(
         self,
@@ -46,13 +73,13 @@ class ArtifactDataset(IterableDataset):
         return self.generate()
 
     def generate(self):
-        """Generate an artifact.
+        """
+        Generate an artifact.
 
         Ensures that each window has some activity.
 
         Returns:
-            A dictionary containing the window, the artifact, the mask and the position.
-
+            dict: A dictionary containing the window, the artifact, the mask, and the position.
         """
         # pick a sequence
         # i = self.rng.integers(0, len(self.data) - 1)
@@ -96,7 +123,17 @@ class ArtifactDataset(IterableDataset):
 
 
 class RealisticArtifactDataset(IterableDataset):
-    """Artifact dataset."""
+    """
+    Artifact dataset mimicing ramping artifacts for a gas plant.
+
+    Args:
+        data (list[np.ndarray]): List of numpy arrays representing the data.
+        artifact (Artifact): The artifact generator instance.
+        width (int): The width of the data window.
+        padding (str | int, optional): The padding type or size. Defaults to "center".
+        weight (Optional[list[float]], optional): Weights for sampling. Defaults to None.
+        p_has_artifact (float, optional): Probability of having an artifact. Defaults to 0.5.
+    """
 
     def __init__(
         self,
@@ -128,15 +165,14 @@ class RealisticArtifactDataset(IterableDataset):
         return self.generate()
 
     def generate(self):
-        """Generate an artifact.
+        """
+        Generate an artifact.
 
         Ensures that each window has some activity.
 
         Returns:
-            A dictionary containing the window, the artifact, the mask and the position.
-
+            dict: A dictionary containing the window, the artifact, the mask, and the position.
         """
-
         # pick a sequence
         # i = self.rng.integers(0, len(self.data) - 1)
         i = self.rng.choice(len(self.data), p=self.weight)
@@ -188,7 +224,17 @@ class RealisticArtifactDataset(IterableDataset):
 
 
 class CenteredArtifactDataset(IterableDataset):
-    """Artifact dataset."""
+    """
+    Artifact dataset mimicing ramping artifacts for a gas plant, placing artifacts in the center of a window.
+
+    Args:
+        data (list[np.ndarray]): List of numpy arrays representing the data.
+        artifact (Artifact): The artifact generator instance.
+        width (int): The width of the data window.
+        padding (str | int, optional): The padding type or size. Defaults to "center".
+        weight (Optional[list[float]], optional): Weights for sampling. Defaults to None.
+        p_has_artifact (float, optional): Probability of having an artifact. Defaults to 0.5.
+    """
 
     def __init__(
         self,
@@ -225,7 +271,7 @@ class CenteredArtifactDataset(IterableDataset):
         Ensures that each window has some activity.
 
         Returns:
-            A dictionary containing the window, the artifact, the mask and the position.
+            A dictionary containing the window, the artifact and the label.
 
         """
         # pick a sequence
@@ -272,7 +318,17 @@ class CenteredArtifactDataset(IterableDataset):
 
 
 class CenteredArtifactDataOnlyDataset(IterableDataset):
-    """Artifact dataset."""
+    """
+    Artifact dataset mimicing ramping artifacts for a gas plant, placing the artifact in the center.
+
+    Args:
+        data (list[np.ndarray]): List of numpy arrays representing the data.
+        artifact (Artifact): The artifact generator instance.
+        width (int): The width of the data window.
+        padding (str | int, optional): The padding type or size. Defaults to "center".
+        weight (Optional[list[float]], optional): Weights for sampling. Defaults to None.
+        p_has_artifact (float, optional): Probability of having an artifact. Defaults to 0.5.
+    """
 
     def __init__(
         self,
@@ -309,7 +365,7 @@ class CenteredArtifactDataOnlyDataset(IterableDataset):
         Ensures that each window has some activity.
 
         Returns:
-            A dictionary containing the window, the artifact, the mask and the position.
+            A dictionary containing the window and the label.
 
         """
         # pick a sequence
@@ -355,7 +411,22 @@ class CenteredArtifactDataOnlyDataset(IterableDataset):
 
 
 class RejectionSamplingCenteredDataset(IterableDataset):
-    """Rejection Sampling Dataset for Sliding Window Approach"""
+    """
+    Artifact dataset mimicing ramping artifacts for a gas plant, placing the artifact in the center.
+    Uses a previously trained model to perform rejection sampling.
+    Samples with a lower confidence score or misclassified samples have a higher probability to
+    be sampled for training.
+
+    Args:
+        data (list[np.ndarray]): List of numpy arrays representing the data.
+        artifact (Artifact): The artifact generator instance.
+        model (SlidingWindowTransformerDetector): The previous trained model.
+        width (int): The width of the data window.
+        padding (str | int, optional): The padding type or size. Defaults to "center".
+        weight (Optional[list[float]], optional): Weights for sampling. Defaults to None.
+        p_has_artifact (float, optional): Probability of having an artifact. Defaults to 0.5.
+        rejection (float): The proportion of highest confidence values not to be resampled.
+    """
 
     def __init__(
         self,
@@ -455,28 +526,53 @@ class RejectionSamplingCenteredDataset(IterableDataset):
 
 
 class TestArtifactDataset(Dataset):
-    """Test Artifact dataset. List with dict containing data sequence and label"""
+    """
+    Test artifact dataset mimicking ramping artifacts for a gas plant.
+
+    Args:
+        data (list[np.ndarray]): List of numpy arrays representing the data.
+        artifact (Artifact): The artifact generator instance.
+        width (int): The width of the data window.
+        padding (str | int, optional): The padding type or size. Defaults to "center".
+        weight (Optional[list[float]], optional): Weights for sampling. Defaults to None.
+        p_has_artifact (float, optional): Probability of having an artifact. Defaults to 0.5.
+    """
 
     def __init__(
         self, data: Optional[list] = None, file: Union[str, Path, None] = None
     ) -> None:
+        """
+        Initialize the TestArtifactDataset with either data or a file path.
+
+        Args:
+            data (Optional[list]): List of numpy arrays representing the data.
+            file (Union[str, Path, None]): Path to a file containing the data.
+        """
         if data is not None:
             self.data = data
         elif file is not None:
             self.data = pickle.load(open(file, "rb"))
 
     def __len__(self) -> int:
+        """
+        Return the number of window in the dataset.
+
+        Returns:
+            int: Number of window.
+        """
         return len(self.data)
 
     def __getitem__(self, i: int) -> np.ndarray:
-        return self.data[i]
+        """
+        Retrieve the window at the given index.
 
-    """"
-    n : #sampleSequences
-    width : wifth of sample sequences
-    data : test data
-    labels : test labels of same length as data
-    """
+        Args:
+            i (int): Index of the data point.
+
+        Returns:
+            np.ndarray: window.
+        """
+        return self.data[i]
 
     @classmethod
     def generate(
@@ -488,6 +584,20 @@ class TestArtifactDataset(Dataset):
         to: Union[str, Path, None] = None,
         start_index: int = 0,
     ):
+        """
+        Generate a dataset with specified parameters.
+
+        Args:
+            labels (list[int]): List of artifact labels.
+            width (int): Width of the data window.
+            n (int): Number of samples to generate.
+            data (list[int]): List of data points.
+            to (Union[str, Path, None], optional): Path to save the generated data. Defaults to None.
+            start_index (int, optional): Starting index for the data. Defaults to 0.
+
+        Returns:
+            TestArtifactDataset: Generated dataset.
+        """
         data = data[start_index:]
         labels = labels[start_index:]
         data_dicts = []
@@ -502,32 +612,73 @@ class TestArtifactDataset(Dataset):
                     "dataset": "real",
                 }
             )
+
         if to is not None:
             pickle.dump(data_dicts, open(to, "wb"))
         return cls(data=data_dicts)
 
 
 class CachedArtifactDataset(Dataset):
-    """Artifact dataset."""
+    """
+    Cached artifact dataset.
+
+    Args:
+        data (Optional[list[np.ndarray]]): List of numpy arrays representing the data.
+        file (Union[str, Path, None]): Path to a file containing the data.
+    """
 
     def __init__(
         self, data: Optional[list] = None, file: Union[str, Path, None] = None
     ) -> None:
+        """
+        Initialize the CachedArtifactDataset with either data or a file path.
+
+        Args:
+            data (Optional[list[np.ndarray]]): List of numpy arrays representing the data.
+            file (Union[str, Path, None]): Path to a file containing the data.
+        """
+
         if data is not None:
             self.data = data
         elif file is not None:
             self.data = pickle.load(open(file, "rb"))
 
     def __len__(self) -> int:
+        """
+        Return the number of windows in the dataset.
+
+        Returns:
+            int: Number of windows.
+        """
         return len(self.data)
 
     def __getitem__(self, i: int) -> np.ndarray:
+        """
+        Retrieve the window at the given index.
+
+        Args:
+            i (int): Index of the window.
+
+        Returns:
+            np.ndarray: window.
+        """
         return self.data[i]
 
     @classmethod
     def generate(
         cls, dataset: ArtifactDataset, n: int, to: Union[str, Path, None] = None
     ):
+        """
+        Generate a dataset from an ArtifactDataset instance.
+
+        Args:
+            dataset (ArtifactDataset): Instance of ArtifactDataset to generate data from.
+            n (int): Number of samples to generate.
+            to (Union[str, Path, None], optional): Path to save the generated data. Defaults to None.
+
+        Returns:
+            CachedArtifactDataset: Generated dataset.
+        """
         data = [next(dataset) for _ in range(n)]
         if to is not None:
             pickle.dump(data, open(to, "wb"))
@@ -535,7 +686,15 @@ class CachedArtifactDataset(Dataset):
 
 
 def load_files(files: np.ndarray | str | Path | list[str | Path]) -> np.ndarray:
-    """Load data from multiple files."""
+    """
+    Load data from multiple files.
+
+    Args:
+        files (Union[np.ndarray, str, Path, list[Union[str, Path]]]): List or array of file paths.
+
+    Returns:
+        np.ndarray: Loaded data.
+    """
     if isinstance(files, Path) or isinstance(files, str):
         files = [files]
     data = list()
@@ -545,6 +704,14 @@ def load_files(files: np.ndarray | str | Path | list[str | Path]) -> np.ndarray:
 
 
 def load_file(file: str | Path) -> list[np.ndarray]:
-    """Load data from multiple files."""
+    """
+    Load data from a single file.
+
+    Args:
+        file (Union[str, Path]): Path to the file.
+
+    Returns:
+        list[np.ndarray]: Loaded data.
+    """
     with open(file, "rb") as f:
         return pickle.load(f)

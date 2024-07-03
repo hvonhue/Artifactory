@@ -1,5 +1,5 @@
-from artitect.mask_detector import WindowTransformerDetector
-from artitect.modeling import SinusoidalPositionEmbedding, WarmupLR, _convolutions, _linear
+from src.detector.mask_detector import WindowTransformerDetector
+from src.modeling.modeling import SinusoidalPositionEmbedding, WarmupLR, _convolutions, _linear
 from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities import grad_norm
 from torch.nn import (
