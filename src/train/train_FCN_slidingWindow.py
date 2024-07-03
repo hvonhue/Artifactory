@@ -11,15 +11,15 @@ import mlflow
 import numpy as np
 import torch
 import typer
-from src.artifact.artifact import Saw_centered
-from src.data.data import CachedArtifactDataset, CenteredArtifactDataset
-from src.modeling.modeling import DelayedEarlyStopping
+from ..artifact.artifact import Saw_centered
+from ..data.data import CachedArtifactDataset, CenteredArtifactDataset
+from ..modeling.modeling import DelayedEarlyStopping
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import MLFlowLogger
-from src.detector.sliding_window_detector import ConvolutionalSlidingWindowDetector
+from ..detector.sliding_window_detector import ConvolutionalSlidingWindowDetector
 from torch.utils.data import DataLoader
-from src.modeling.utilities import parameters_k
+from ..modeling.utilities import parameters_k
 
 # stop warnings
 torch.set_float32_matmul_precision("high")
