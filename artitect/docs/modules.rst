@@ -1,7 +1,7 @@
-src
+artitect
 ===
 
 .. toctree::
    :maxdepth: 4
 
-   src
+   artitect

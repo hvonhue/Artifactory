@@ -1,125 +1,125 @@
-src package
+artitect package
 ===========
 
 Submodules
 ----------
 
-src.artifact module
+artitect.artifact module
 -------------------
 
-.. automodule:: src.artifact
+.. automodule:: artitect.artifact
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.data module
+artitect.data module
 ---------------
 
-.. automodule:: src.data
+.. automodule:: artitect.data
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.logger module
+artitect.logger module
 -----------------
 
-.. automodule:: src.logger
+.. automodule:: artitect.logger
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.mask\_detector module
+artitect.mask\_detector module
 -------------------------
 
-.. automodule:: src.mask_detector
+.. automodule:: artitect.mask_detector
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.modeling module
+artitect.modeling module
 -------------------
 
-.. automodule:: src.modeling
+.. automodule:: artitect.modeling
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.sliding\_window\_detector module
+artitect.sliding\_window\_detector module
 ------------------------------------
 
-.. automodule:: src.sliding_window_detector
+.. automodule:: artitect.sliding_window_detector
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.train\_FCNTrans\_mask module
+artitect.train\_FCNTrans\_mask module
 --------------------------------
 
-.. automodule:: src.train_FCNTrans_mask
+.. automodule:: artitect.train_FCNTrans_mask
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.train\_FCNTrans\_slidingWindow module
+artitect.train\_FCNTrans\_slidingWindow module
 -----------------------------------------
 
-.. automodule:: src.train_FCNTrans_slidingWindow
+.. automodule:: artitect.train_FCNTrans_slidingWindow
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.train\_FCN\_dense\_mask module
+artitect.train\_FCN\_dense\_mask module
 ----------------------------------
 
-.. automodule:: src.train_FCN_dense_mask
+.. automodule:: artitect.train_FCN_dense_mask
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.train\_FCN\_dense\_slidingWindow module
+artitect.train\_FCN\_dense\_slidingWindow module
 -------------------------------------------
 
-.. automodule:: src.train_FCN_dense_slidingWindow
+.. automodule:: artitect.train_FCN_dense_slidingWindow
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.train\_FCN\_mask module
+artitect.train\_FCN\_mask module
 ---------------------------
 
-.. automodule:: src.train_FCN_mask
+.. automodule:: artitect.train_FCN_mask
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.train\_FCN\_slidingWindow module
+artitect.train\_FCN\_slidingWindow module
 ------------------------------------
 
-.. automodule:: src.train_FCN_slidingWindow
+.. automodule:: artitect.train_FCN_slidingWindow
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.train\_TransOnly\_mask module
+artitect.train\_TransOnly\_mask module
 ---------------------------------
 
-.. automodule:: src.train_TransOnly_mask
+.. automodule:: artitect.train_TransOnly_mask
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.train\_TransOnly\_slidingWindow module
+artitect.train\_TransOnly\_slidingWindow module
 ------------------------------------------
 
-.. automodule:: src.train_TransOnly_slidingWindow
+.. automodule:: artitect.train_TransOnly_slidingWindow
    :members:
    :undoc-members:
    :show-inheritance:
 
-src.utilities module
+artitect.utilities module
 --------------------
 
-.. automodule:: src.utilities
+.. automodule:: artitect.utilities
    :members:
    :undoc-members:
    :show-inheritance:
@@ -127,7 +127,7 @@ src.utilities module
 Module contents
 ---------------
 
-.. automodule:: src
+.. automodule:: artitect
    :members:
    :undoc-members:
    :show-inheritance:
