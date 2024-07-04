@@ -14,7 +14,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, precision_score, recall_score, mean_squared_error, confusion_matrix, fbeta_score
 
 """
-
+Work in Porgress - not ready to use
 """
 def detect_artifacts_sw(data_path: str, 
                         gt_path: str, 
