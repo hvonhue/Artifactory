@@ -129,17 +129,17 @@ def main(
 
     # validation
     val_file = Path(f"{val_path}")
-    # validation
     if not val_file.exists():
-        val_data, val_weights = load_series(train_datasets, "ALL")
-        val_gen = CenteredArtifactDataset(val_data,
-                                width=width,
-                                padding=64,
-                                artifact=artifact,
-                                weight=val_weights)
-        val = CachedArtifactDataset.generate(val_gen,
-                                            n=2048,
-                                            to=val_file)
+        f"'val_file' at provided 'val_path' directory ({val_path}) doesn't exist! Creating validation file..."
+        val_data, val_weights = load_series(train_datasets, "VAL", str(input_path))
+        val_gen = CenteredArtifactDataset(
+            val_data,
+            width=width,
+            padding=64,
+            artifact=artifact,
+            weight=val_weights,
+        )
+        val = CachedArtifactDataset.generate(val_gen, n=2048, to=val_file)
     else:
         val = CachedArtifactDataset(file=val_file)
     val_loader = DataLoader(val, batch_size=batch_size)
