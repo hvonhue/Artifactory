@@ -22,4 +22,4 @@ dependencies:
       - tsdb==0.2.1
       - rich==13.3.5
       - Sphinx==7.3.7
-      - sphinx_rtd_theme-2.0.0
+      - sphinx_rtd_theme==2.0.0

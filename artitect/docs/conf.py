@@ -20,7 +20,7 @@ release = '04.06.2024'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = ["sphinx.ext.autodoc",
-    "sphinx_autodoc_typehints",
+    # "sphinx_autodoc_typehints",
     # "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",

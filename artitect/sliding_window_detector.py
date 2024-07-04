@@ -18,8 +18,41 @@ from torchmetrics.classification import BinaryAccuracy, BinaryF1Score, BinaryFBe
 
 
 class SlidingWindowTransformerDetector(LightningModule):
-    """Use convolutional layers to extract features, then use them
-    in a transformer block"""
+    """
+    Use convolutional layers to extract features, then use them
+    in a transformer block.
+
+    Parameters
+    ----------
+    window : int
+        The window size for the input sequence.
+    convolution_features : list[int]
+        The number of features for each convolutional layer.
+    convolution_width : list[int]
+        The kernel width for each convolutional layer.
+    convolution_dropout : float
+        The dropout rate for the convolutional layers.
+    transformer_heads : int
+        The number of heads in the transformer encoder.
+    transformer_feedforward : int
+        The dimension of the feedforward network model in the transformer.
+    transformer_layers : int
+        The number of sub-encoder-layers in the transformer encoder.
+    transformer_dropout : float
+        The dropout rate for the transformer encoder.
+    conv_pool_kernel : int, optional
+        The kernel size for the max pooling layer after convolutional layers (default is 4).
+    pooling : str, optional
+        The pooling method to use ('avg', 'max', 'cls', or 'total') (default is 'avg').
+    loss : str, optional
+        The key for the loss calculation from the batch dictionary (default is 'label').
+    loss_boost_fp : float, optional
+        The boosting factor for false positive loss (default is 0.5).
+    act_fct : LightningModule, optional
+        The activation function to use (default is Sigmoid()).
+    warmup : int, optional
+        The number of warmup steps for the learning rate scheduler (default is 30).
+    """
 
     def __init__(
         self,
@@ -78,8 +111,17 @@ class SlidingWindowTransformerDetector(LightningModule):
 
     def forward(self, x):
         """
-        Input: (batch, window)
-        Output: (batch, window)
+        Forward pass through the network.
+
+        Parameters
+        ----------
+        x : Tensor
+            Input tensor of shape (batch, window).
+
+        Returns
+        -------
+        Tensor
+            Output tensor of shape (batch, window).
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -115,6 +157,21 @@ class SlidingWindowTransformerDetector(LightningModule):
         return self.act_fct(x)
 
     def training_step(self, batch, _):
+        """
+        Training step.
+
+        Parameters
+        ----------
+        batch : dict
+            Dictionary containing the input data and targets.
+        _ : Any
+            Placeholder for unused argument.
+
+        Returns
+        -------
+        Tensor
+            Loss value for the training step.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss].float()
         loss = binary_cross_entropy(y, m)
@@ -140,6 +197,21 @@ class SlidingWindowTransformerDetector(LightningModule):
         return loss
 
     def validation_step(self, batch, _):
+        """
+        Validation step.
+
+        Parameters
+        ----------
+        batch : dict
+            Dictionary containing the input data and targets.
+        _ : Any
+            Placeholder for unused argument.
+
+        Returns
+        -------
+        Tensor
+            Loss value for the validation step.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss].float()
         loss = binary_cross_entropy(y, m)
@@ -153,6 +225,14 @@ class SlidingWindowTransformerDetector(LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """
+        Configure optimizers and learning rate scheduler.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the optimizer and learning rate scheduler.
+        """
         optimizer = Adam(self.parameters(), lr=1e-2)
         scheduler = WarmupLR(
             optimizer,
@@ -171,10 +251,33 @@ class SlidingWindowTransformerDetector(LightningModule):
         }
 
     def on_before_optimizer_step(self, _):
+        """
+        Log gradient norms before the optimizer step.
+
+        Parameters
+        ----------
+        _ : Any
+            Placeholder for unused argument.
+        """
         self.log_dict(grad_norm(self, norm_type=2))
 
 
 class FineTunedSlidingWindowDetector(LightningModule):
+    """
+    Fine-tuned Sliding Window Detector using a pretrained WindowTransformerDetector.
+
+    Parameters
+    ----------
+    pretrainedModel : WindowTransformerDetector
+        The pretrained model to fine-tune.
+    pooling : str, optional
+        The pooling method to use ('avg', 'max', 'cls', or 'linear') (default is 'avg').
+    act_fct : callable, optional
+        The activation function to use (default is Sigmoid()).
+    warmup : int, optional
+        The number of warmup steps for the learning rate scheduler (default is 10000).
+    """
+
     def __init__(
         self,
         pretrainedModel: WindowTransformerDetector,
@@ -205,8 +308,17 @@ class FineTunedSlidingWindowDetector(LightningModule):
 
     def forward(self, x):
         """
-        Input: (batch, window)
-        Output: (batch, window)
+        Forward pass through the network.
+
+        Parameters
+        ----------
+        x : Tensor
+            Input tensor of shape (batch, window).
+
+        Returns
+        -------
+        Tensor
+            Output tensor of shape (batch, window).
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -238,6 +350,21 @@ class FineTunedSlidingWindowDetector(LightningModule):
         return x
 
     def training_step(self, batch, _):
+        """
+        Training step.
+
+        Parameters
+        ----------
+        batch : dict
+            Dictionary containing the input data and targets.
+        _ : Any
+            Placeholder for unused argument.
+
+        Returns
+        -------
+        Tensor
+            Loss value for the training step.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss].float()
         loss = binary_cross_entropy(y, m)
@@ -260,6 +387,21 @@ class FineTunedSlidingWindowDetector(LightningModule):
         return loss
 
     def validation_step(self, batch, _):
+        """
+        Validation step.
+
+        Parameters
+        ----------
+        batch : dict
+            Dictionary containing the input data and targets.
+        _ : Any
+            Placeholder for unused argument.
+
+        Returns
+        -------
+        Tensor
+            Loss value for the validation step.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss].float()
         loss = binary_cross_entropy(y, m)
@@ -271,6 +413,14 @@ class FineTunedSlidingWindowDetector(LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """
+        Configure optimizers and learning rate scheduler.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the optimizer and learning rate scheduler.
+        """
         optimizer = Adam(self.parameters(), lr=1e-3)
         scheduler = WarmupLR(
             optimizer,
@@ -289,168 +439,47 @@ class FineTunedSlidingWindowDetector(LightningModule):
         }
 
     def on_before_optimizer_step(self, _):
+        """
+        Log gradient norms before the optimizer step.
+
+        Parameters
+        ----------
+        _ : Any
+            Placeholder for unused argument.
+        """
         self.log_dict(grad_norm(self, norm_type=2))
 
-
-class Old_SlidingWindowLinearDetector(LightningModule):
-    """Use convolutional layers to extract features, then use them
-    in a dense block"""
-
-    def __init__(
-        self,
-        window: int,
-        convolution_features: list[int],
-        convolution_width: list[int],
-        convolution_dropout: float,
-        pooling_kernel: int = 8,
-        linear_dropout: float = 0,
-        linear_layers: list[int] | None = None,
-        loss: str = "label",
-        loss_boost_fp: float = 0.0,
-        act_fct: LightningModule = Sigmoid(),
-    ):
-        super().__init__()
-        self.window = window
-        self.loss = loss
-        self.loss_boost_fp = loss_boost_fp
-        self.save_hyperparameters()
-        self.convolution_features = convolution_features
-        # convolutional layers to extract features
-        self.convolutions = _convolutions(
-            convolution_features=[1] + convolution_features,
-            convolution_width=convolution_width,
-            convolution_dropout=convolution_dropout,
-            pad=True,
-        )
-        # dropout layer before dense block
-        self.dropout = Dropout(linear_dropout)
-        self.pooling = MaxPool1d(kernel_size=pooling_kernel)
-        # final linear block to convert each
-        # feature to a single value
-        # self.linear = _linear(
-        #     [int(window/pooling_kernel)*convolution_features[-1], *(linear_layers or list()), 1]
-        # )
-        self.linear_1 = Linear(convolution_features[-1], 1)
-        self.linear_2 = Linear(int(window / pooling_kernel), 1)
-
-        self.linear = _linear(
-            [int(window / pooling_kernel), *(linear_layers or list()), 1]
-        )
-        self.act_fct = act_fct
-        self.f1_score = BinaryF1Score(multidim_average="global")
-        self.accuracy = BinaryAccuracy(multidim_average="global")
-
-    def forward(self, x):
-        """
-        Input: (batch, window)
-        Output: (batch, window)
-        """
-        # print('input: ', x.shape) # [32, 512]
-        x = x.unsqueeze(1)
-        # print('unsqueeze: ', x.shape) # [32, 1, 512]
-        x = self.convolutions(x)
-        # print('conv: ', x.shape) # [32, 32, 512]
-        # print('check: ', torch.all(torch.eq(x,self.pooling(x))))
-        # x = self.dropout(x)
-        x = self.pooling(x)
-        # print('MaxPool1d: ', x.shape) # [32, 32, 64]
-        # print('drop: ', x.shape) # [32, 32, 512]
-        x = x.transpose(1, 2)
-        # print("Transp.: ", x.shape)
-        x = self.linear_1(x)
-        # print("Lin 1: ", x.shape)
-        x = x.squeeze()
-        # print("Squeeze: ", x.shape)
-        # convert output tokens to predictions
-        x = self.linear_2(x)
-        # print("Lin2: ", x.shape)
-        x = x.squeeze()
-        # print("squeeze: ", x.shape)
-        # activation function for binary classification
-        x = self.act_fct(x)
-
-        # # Max 1D Pooling
-        # x = self.pooling(x)
-        # #print('MaxPool1d: ', x.shape) # [32, 32, 64]
-        # x = x.transpose(1, 2)
-        # # x = x.view(x.shape[0], -1)
-        # #print('Flatten: ', x.shape) # [32, 2048]
-        # x = self.linear_1(x)
-        # print('linear: ', x.shape) # [32, 1]
-        # x = x.squeeze()
-        # #print('squeeze: ', x.shape) # [32]
-        # x = self.linear(x)
-        # print('linear block: ', x.shape) # [32, 1]
-        # x = x.squeeze()
-        # print('squeeze: ', x.shape) # [32]
-        # x = Linear(self.convolution_features[-1], 1)(x)
-        # print('output: ', x.shape) # [32, 1]
-        # convert output tokens back to predictions
-        # x = x.squeeze()
-        # print('outout: ', x.shape) # [32]
-        return x
-
-    def training_step(self, batch, _):
-        y = self.forward(batch["data"] + batch["artifact"])
-        m = batch[self.loss].float()
-        loss = binary_cross_entropy(y, m)
-        if self.loss_boost_fp > 0 and self.loss_boost_fp <= 1:
-            loss_fp = binary_cross_entropy(y[m == 0], m[m == 0])
-            loss += self.loss_boost_fp * loss_fp
-            self.log("train_fp", loss_fp.item())
-        accuracy = self.accuracy(y, m)
-        f1_score = self.f1_score(y, m)
-        self.log_dict(
-            {
-                "train_loss": loss.item(),
-                "train_accuracy": accuracy,
-                "train_f1_score": f1_score,
-            },
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-        )
-        self.log("train", loss.item())
-        return loss
-
-    def validation_step(self, batch, _):
-        y = self.forward(batch["data"] + batch["artifact"])
-        m = batch[self.loss].float()
-        loss = binary_cross_entropy(y, m)
-        loss_fp = binary_cross_entropy(y[m == 0], m[m == 0])
-        self.log("validation", loss.item())
-        self.log("validation_fp", loss_fp.item())
-        return loss
-
-    def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=1e-3)
-        # scheduler = ReduceLROnPlateau(
-        #     optimizer,
-        #     mode="min",
-        #     factor=0.1,
-        #     patience=1,
-        #     min_lr=1e-6,
-        #     verbose=True,
-        # )
-        return {
-            "optimizer": optimizer,
-            # "lr_scheduler": {
-            #     "scheduler": scheduler,
-            #     "interval": "step",
-            #     "frequency": 1000,
-            #     "name": "learning_rate",
-            #     "strict": True,
-            #     "monitor": "validation",
-            # },
-        }
-
-    def on_before_optimizer_step(self, _):
-        self.log_dict(grad_norm(self, norm_type=2))
 
 
 class SlidingWindowLinearDetector(LightningModule):
-    """Use convolutional layers to extract features, then use them
-    in a dense block"""
+    """
+    Use convolutional layers to extract features, then use them in a dense block.
+
+    Parameters
+    ----------
+    window : int
+        The size of the sliding window.
+    convolution_features : list[int]
+        List of the number of features for each convolutional layer.
+    convolution_width : list[int]
+        List of kernel sizes for each convolutional layer.
+    convolution_dropout : float
+        Dropout rate for the convolutional layers.
+    pooling_kernel : int, optional
+        Kernel size for the max pooling layer (default is 8).
+    linear_dropout : float, optional
+        Dropout rate for the linear layers (default is 0).
+    linear_layers : list[int], optional
+        List of sizes for the linear layers (default is None).
+    loss : str, optional
+        Loss function to use (default is "label").
+    loss_boost_fp : float, optional
+        Boost factor for false positives in the loss function (default is 0.2).
+    warmup : int, optional
+        Number of warmup steps for the learning rate scheduler (default is 15000).
+    act_fct : LightningModule, optional
+        Activation function to use in the output layer (default is Sigmoid()).
+    """
 
     def __init__(
         self,
@@ -501,8 +530,17 @@ class SlidingWindowLinearDetector(LightningModule):
 
     def forward(self, x):
         """
-        Input: (batch, window)
-        Output: (batch, window)
+        Forward pass through the network.
+
+        Parameters
+        ----------
+        x : Tensor
+            Input tensor of shape (batch, window).
+
+        Returns
+        -------
+        Tensor
+            Output tensor of shape (batch,).
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -516,6 +554,21 @@ class SlidingWindowLinearDetector(LightningModule):
         return self.act_fct(x)
 
     def training_step(self, batch, _):
+        """
+        Training step.
+
+        Parameters
+        ----------
+        batch : dict
+            Dictionary containing the input data and targets.
+        _ : Any
+            Placeholder for unused argument.
+
+        Returns
+        -------
+        Tensor
+            Loss value for the training step.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss].float()
         loss = binary_cross_entropy(y, m)
@@ -540,6 +593,21 @@ class SlidingWindowLinearDetector(LightningModule):
         return loss
 
     def validation_step(self, batch, _):
+        """
+        Validation step.
+
+        Parameters
+        ----------
+        batch : dict
+            Dictionary containing the input data and targets.
+        _ : Any
+            Placeholder for unused argument.
+
+        Returns
+        -------
+        Tensor
+            Loss value for the validation step.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss].float()
         loss = binary_cross_entropy(y, m)
@@ -553,6 +621,14 @@ class SlidingWindowLinearDetector(LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """
+        Configure optimizers and learning rate scheduler.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the optimizer and learning rate scheduler.
+        """
         optimizer = Adam(self.parameters(), lr=1e-2)
         scheduler = WarmupLR(
             optimizer,
@@ -573,8 +649,32 @@ class SlidingWindowLinearDetector(LightningModule):
 
 
 class ConvolutionalSlidingWindowDetector(LightningModule):
-    """Use convolutional layers to extract features, then use them
-    in a dense block"""
+    """
+    Use convolutional layers to extract features, then use them in a dense block.
+
+    Parameters
+    ----------
+    window : int
+        The size of the sliding window.
+    convolution_features : list[int]
+        List of the number of features for each convolutional layer.
+    convolution_width : list[int]
+        List of kernel sizes for each convolutional layer.
+    convolution_dropout : float
+        Dropout rate for the convolutional layers.
+    pooling : str, optional
+        Pooling method to use. Options are "avg", "max", "cls", or "none". (default is "avg")
+    loss : str, optional
+        Loss function to use (default is "label").
+    loss_boost_fp : float, optional
+        Boost factor for false positives in the loss function (default is 0.2).
+    batch_normalization : bool, optional
+        Whether to use batch normalization in the convolutional layers (default is False).
+    act_fct : LightningModule, optional
+        Activation function to use in the output layer (default is Sigmoid()).
+    warmup : int, optional
+        Number of warmup steps for the learning rate scheduler (default is 15000).
+    """
 
     def __init__(
         self,
@@ -616,8 +716,17 @@ class ConvolutionalSlidingWindowDetector(LightningModule):
 
     def forward(self, x):
         """
-        Input: (batch, window)
-        Output: (batch, window)
+        Forward pass through the network.
+
+        Parameters
+        ----------
+        x : Tensor
+            Input tensor of shape (batch, window).
+
+        Returns
+        -------
+        Tensor
+            Output tensor of shape (batch,).
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -638,6 +747,21 @@ class ConvolutionalSlidingWindowDetector(LightningModule):
         return self.act_fct(x)
 
     def training_step(self, batch, _):
+        """
+        Training step.
+
+        Parameters
+        ----------
+        batch : dict
+            Dictionary containing the input data and targets.
+        _ : Any
+            Placeholder for unused argument.
+
+        Returns
+        -------
+        Tensor
+            Loss value for the training step.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss].float()
         # loss = macro_soft_f1(preds=y, labels=m, beta=0.5)
@@ -664,6 +788,21 @@ class ConvolutionalSlidingWindowDetector(LightningModule):
         return loss
 
     def validation_step(self, batch, _):
+        """
+        Validation step.
+
+        Parameters
+        ----------
+        batch : dict
+            Dictionary containing the input data and targets.
+        _ : Any
+            Placeholder for unused argument.
+
+        Returns
+        -------
+        Tensor
+            Loss value for the validation step.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss].float()
         # loss = macro_soft_f1(preds=y, labels=m, beta=0.5)
@@ -678,6 +817,14 @@ class ConvolutionalSlidingWindowDetector(LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """
+        Configure optimizers and learning rate scheduler.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the optimizer and learning rate scheduler.
+        """
         optimizer = Adam(self.parameters(), lr=1e-2)
         scheduler = ReduceLROnPlateau(
             optimizer,
@@ -700,4 +847,12 @@ class ConvolutionalSlidingWindowDetector(LightningModule):
         }
 
     def on_before_optimizer_step(self, _):
+        """
+        Log gradient norms before the optimizer step.
+
+        Parameters
+        ----------
+        _ : Any
+            Placeholder for unused argument.
+        """
         self.log_dict(grad_norm(self, norm_type=2))

@@ -34,15 +34,26 @@ def _convolutions(
     last: bool = True,
     pad: bool = False,
 ) -> Sequential:
-    """Create a sequence of convolutional layers.
+    """
+    Create a sequence of convolutional layers.
 
     Args:
-        convolution_features: Number of features in each layer.
-        convolution_width: Width of each layer. If an integer,
-            all layers will have the same width. If a list,
-            each layer will have the corresponding width.
-        last: If False, the last layer will not have an activation.
+        convolution_features (list[int]): Number of features in each layer.
+        convolution_width (int | list[int]): Width of each layer. If an integer,
+            all layers will have the same width. If a list, each layer will have 
+            the corresponding width.
+        convolution_dilation (int | list[int], optional): Dilation of each layer. 
+            Defaults to 1.
+        convolution_dropout (float, optional): Dropout rate. Defaults to 0.0.
+        batch_normalization (bool, optional): Whether to apply batch normalization. 
+            Defaults to False.
+        activation (str, optional): Activation function to use. Defaults to "sigmoid".
+        last (bool, optional): If False, the last layer will not have an activation. 
+            Defaults to True.
+        pad (bool, optional): Whether to apply padding. Defaults to False.
 
+    Returns:
+        Sequential: A sequence of convolutional layers.
     """
     if isinstance(convolution_dilation, int):
         convolution_dilation = [convolution_dilation] * (len(convolution_features) - 1)
@@ -74,7 +85,20 @@ def _linear(
     last: bool = True,
     batch_normalization: bool = False,
 ) -> Sequential:
-    """Create a sequence of linear layers."""
+    """
+    Create a sequence of linear layers.
+
+    Args:
+        features (list[int]): Number of features in each layer.
+        activation (Module, optional): Activation function to use. Defaults to Sigmoid().
+        last (bool, optional): If False, the last layer will not have an activation. 
+            Defaults to True.
+        batch_normalization (bool, optional): Whether to apply batch normalization. 
+            Defaults to False.
+
+    Returns:
+        Sequential: A sequence of linear layers.
+    """
     layers = Sequential()
     for i in range(len(features) - 1):
         layers.append(Linear(features[i], features[i + 1]))
@@ -86,7 +110,16 @@ def _linear(
 
 
 def _size(s: int, layers: Sequential) -> int:
-    """Compute the size of the output."""
+    """
+    Compute the size of the output.
+
+    Args:
+        s (int): Initial size.
+        layers (Sequential): Sequence of layers.
+
+    Returns:
+        int: Size of the output.
+    """
     for layer in layers:
         if isinstance(layer, Conv1d):
             s = s - layer.kernel_size[0] + 1
@@ -98,11 +131,11 @@ class SinusoidalPositionEmbedding(Module):
 
     def __init__(self, dimension: int, length: int):
         """
+        Initialize the SinusoidalPositionEmbedding.
 
         Args:
-            dimension: Embedding dimension.
-            length: Sequence length.
-
+            dimension (int): Embedding dimension.
+            length (int): Sequence length.
         """
         super().__init__()
         self.dimension = dimension
@@ -117,6 +150,15 @@ class SinusoidalPositionEmbedding(Module):
         self.register_buffer("position", pe)
 
     def forward(self, x: torch.tensor) -> torch.Tensor:
+        """
+        Forward pass for SinusoidalPositionEmbedding.
+
+        Args:
+            x (torch.tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor with added position embedding.
+        """
         return x + self.position
 
 
@@ -124,6 +166,13 @@ class LearnedPositionEmbedding(Module):
     """Learn position embedding."""
 
     def __init__(self, dimension: int, length: int):
+        """
+        Initialize the LearnedPositionEmbedding.
+
+        Args:
+            dimension (int): Embedding dimension.
+            length (int): Sequence length.
+        """
         super().__init__()
         self.dimension = dimension
         self.length = length
@@ -131,27 +180,30 @@ class LearnedPositionEmbedding(Module):
         self.register_buffer("ids", torch.arange(length).unsqueeze(0))
 
     def forward(self, x: torch.tensor) -> torch.Tensor:
+        """
+        Forward pass for LearnedPositionEmbedding.
+
+        Args:
+            x (torch.tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor with added position embedding.
+        """
         return x + self.embedding(self.ids)
-
-
-# def Fbeta_loss(pred: torch.Tensor, label: float, beta: float = 0.5) -> float:
-#     print(
-#         ("loss: ", -label * np.log(pred) + (1 - label) * np.log(beta**2 + pred)).sum()
-#     )
-#     return (-label * np.log(pred) + (1 - label) * np.log(beta**2 + pred)).sum()
-
+    
 
 def macro_soft_f1(preds: torch.Tensor, labels: torch.Tensor, beta: float = 0.5):
-    """Compute the macro soft F1-score as a cost.
-    Average (1 - soft-F1) across all labels.
+    """
+    Compute the macro soft F1-score as a cost. Average (1 - soft-F1) across all labels.
     Use probability values instead of binary predictions.
 
     Args:
-        y (int32 Tensor): targets array of shape (BATCH_SIZE)
-        y_hat (float32 Tensor): probability matrix of shape (BATCH_SIZE)
+        preds (torch.Tensor): Probability matrix of shape (BATCH_SIZE).
+        labels (torch.Tensor): Targets array of shape (BATCH_SIZE).
+        beta (float, optional): Weight of precision in harmonic mean. Defaults to 0.5.
 
     Returns:
-        cost (scalar Tensor): value of the cost function for the batch
+        torch.Tensor: Cost value of the soft F1-score.
     """
     tp = (preds * labels).sum()
     fp = (preds * (1 - labels)).sum()
@@ -168,9 +220,11 @@ def macro_soft_f1(preds: torch.Tensor, labels: torch.Tensor, beta: float = 0.5):
 
 
 class WarmupLR(_LRScheduler):
-    """The WarmupLR scheduler
+    """
+    Warm up learning rate scheduler module.
 
-    This scheduler is almost same as NoamLR Scheduler except for following difference:
+    This scheduler is almost the same as NoamLR Scheduler except for the following 
+    difference:
 
     NoamLR:
         lr = optimizer.lr * model_size ** -0.5
@@ -179,16 +233,23 @@ class WarmupLR(_LRScheduler):
         lr = optimizer.lr * warmup_step ** 0.5
              * min(step ** -0.5, step * warmup_step ** -1.5)
 
-    Note that the maximum lr equals to optimizer.lr in this scheduler.
-
+    Note that the maximum lr equals the optimizer.lr in this scheduler.
     """
-
     def __init__(
         self,
         optimizer: torch.optim.Optimizer,
         warmup_steps: Union[int, float] = 25000,
         last_step: int = -1,
     ):
+        """
+        Initialize the WarmupLR scheduler.
+
+        Args:
+            optimizer (torch.optim.Optimizer): Wrapped optimizer.
+            warmup_steps (Union[int, float], optional): Number of warmup steps. 
+                Defaults to 25000.
+            last_step (int, optional): The index of the last step. Defaults to -1.
+        """
         self.warmup_steps = warmup_steps
         self.last_step = last_step
 
@@ -197,9 +258,21 @@ class WarmupLR(_LRScheduler):
         super().__init__(optimizer)
 
     def __repr__(self):
+        """
+        Return the string representation of the WarmupLR scheduler.
+
+        Returns:
+            str: String representation of the WarmupLR scheduler.
+        """
         return f"{self.__class__.__name__}(warmup_steps={self.warmup_steps})"
 
     def get_lr(self):
+        """
+        Compute learning rate at the current step.
+
+        Returns:
+            list[float]: List of learning rates for each parameter group.
+        """
         step_num = self.last_step + 1
         return [
             lr
@@ -209,6 +282,12 @@ class WarmupLR(_LRScheduler):
         ]
 
     def step(self, step=None):
+        """
+        Update the learning rate at the current step.
+
+        Args:
+            step (int, optional): The current step. If None, increment the last step by 1.
+        """
         self.last_step += 1
         for param_group, lr in zip(self.optimizer.param_groups, self.get_lr()):
             param_group["lr"] = lr
@@ -216,6 +295,18 @@ class WarmupLR(_LRScheduler):
 
 
 class DelayedEarlyStopping(pl.Callback):
+    """
+    Delayed early stopping callback for PyTorch Lightning.
+
+    Args:
+        patience (int, optional): Number of validation steps with no improvement 
+            after which training will be stopped. Defaults to 5.
+        monitor (str, optional): Quantity to be monitored. Defaults to "val_loss".
+        warmupES (int, optional): Number of steps before early stopping can trigger. 
+            Defaults to 10.
+        min_delta (float, optional): Minimum change in the monitored quantity to qualify 
+            as an improvement. Defaults to 0.01.
+    """
     def __init__(
         self,
         patience: int = 5,
@@ -233,6 +324,13 @@ class DelayedEarlyStopping(pl.Callback):
         self.min_delta = min_delta
 
     def on_validation_end(self, trainer, pl_module):
+        """
+        Called when the validation loop ends.
+
+        Args:
+            trainer (pl.Trainer): Trainer instance.
+            pl_module (pl.LightningModule): Lightning module instance.
+        """
         print(trainer.global_step)
         if trainer.global_step > self.warmupES:
             current_score = trainer.callback_metrics.get(self.monitor)

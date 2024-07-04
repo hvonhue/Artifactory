@@ -9,8 +9,43 @@ from torchmetrics.classification import BinaryAccuracy, BinaryF1Score, BinaryFBe
 
 
 class ConvolutionDetector(LightningModule):
-    """Use only convolutional layers. Based on FCN"""
+    """
+    A convolutional neural network detector based on Fully Convolutional Networks (FCN).
 
+    Parameters
+    ----------
+    window : int
+        The size of the input window.
+    convolution_features : list[int]
+        A list of the number of features for each convolutional layer.
+    convolution_width : list[int]
+        A list of the kernel widths for each convolutional layer.
+    convolution_dropout : float, optional
+        Dropout rate for convolutional layers, by default 0.0.
+    pooling : str, optional
+        Pooling method, either "avg" for average pooling or "max" for max pooling, by default "avg".
+    loss : str, optional
+        The key for the loss mask in the input batch, by default "mask".
+    loss_boost_fp : float, optional
+        Factor to boost the loss for false positives, by default 0.2.
+    batch_normalization : bool, optional
+        Whether to apply batch normalization, by default False.
+    warmup : int, optional
+        Number of warmup steps for learning rate scheduling, by default 30.
+
+    Methods
+    -------
+    forward(x)
+        Perform a forward pass through the network.
+    training_step(batch, _)
+        Execute a training step.
+    validation_step(batch, _)
+        Execute a validation step.
+    configure_optimizers()
+        Configure the optimizers and learning rate schedulers.
+    on_before_optimizer_step(_)
+        Log gradient norms before the optimizer step.
+    """
     def __init__(
         self,
         window: int,
@@ -46,8 +81,17 @@ class ConvolutionDetector(LightningModule):
 
     def forward(self, x):
         """
-        :param x: input of size (batch, window)
-        :return: output of size (batch, window)
+        Perform a forward pass through the network.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape (batch, window).
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape (batch, window).
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -59,6 +103,17 @@ class ConvolutionDetector(LightningModule):
 
     def training_step(self, batch, _):
         """
+        Execute a training step.
+
+        Parameters
+        ----------
+        batch : dict
+            A batch of input data.
+
+        Returns
+        -------
+        torch.Tensor
+            The loss value.
         """
         # Your normal training operations
         y = self.forward(batch["data"] + batch["artifact"])
@@ -88,7 +143,17 @@ class ConvolutionDetector(LightningModule):
 
     def validation_step(self, batch, _):
         """
-        validation step
+        Execute a validation step.
+
+        Parameters
+        ----------
+        batch : dict
+            A batch of input data.
+
+        Returns
+        -------
+        torch.Tensor
+            The loss value.
         """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
@@ -105,7 +170,12 @@ class ConvolutionDetector(LightningModule):
 
     def configure_optimizers(self):
         """
-        :return: dict
+        Configure the optimizers and learning rate schedulers.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the optimizer and learning rate scheduler configurations.
         """
         optimizer = Adam(self.parameters(), lr=1e-2)
         scheduler = ReduceLROnPlateau(
@@ -134,8 +204,47 @@ class ConvolutionDetector(LightningModule):
 
 
 class WindowTransformerDetector(LightningModule):
-    """Use convolutional layers to extract features, then use them
-    in a transformer block"""
+    """
+    A hybrid detector that uses convolutional layers to extract features and a transformer block for detection.
+
+    Parameters
+    ----------
+    window : int
+        The size of the input window.
+    convolution_features : list[int]
+        A list of the number of features for each convolutional layer.
+    convolution_width : list[int]
+        A list of the kernel widths for each convolutional layer.
+    convolution_dropout : float
+        Dropout rate for convolutional layers.
+    transformer_heads : int
+        Number of heads in the multi-head attention mechanism of the transformer.
+    transformer_feedforward : int
+        Dimensionality of the feedforward network model in the transformer.
+    transformer_layers : int
+        Number of layers in the transformer encoder.
+    transformer_dropout : float
+        Dropout rate for the transformer layers.
+    loss : str, optional
+        The key for the loss mask in the input batch, by default "mask".
+    loss_boost_fp : float, optional
+        Factor to boost the loss for false positives, by default 0.2.
+    warmup : int, optional
+        Number of warmup steps for learning rate scheduling, by default 30.
+
+    Methods
+    -------
+    forward(x)
+        Perform a forward pass through the network.
+    training_step(batch, _)
+        Execute a training step.
+    validation_step(batch, _)
+        Execute a validation step.
+    configure_optimizers()
+        Configure the optimizers and learning rate schedulers.
+    on_before_optimizer_step(_)
+        Log gradient norms before the optimizer step.
+    """
 
     def __init__(
         self,
@@ -186,8 +295,17 @@ class WindowTransformerDetector(LightningModule):
 
     def forward(self, x):
         """
-        :param x: input of size (batch, window)
-        :return: output of size (batch, window)
+        Perform a forward pass through the network.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape (batch, window).
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape (batch, window).
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -206,6 +324,19 @@ class WindowTransformerDetector(LightningModule):
         return x.squeeze()
 
     def training_step(self, batch, _):
+        """
+        Execute a training step.
+
+        Parameters
+        ----------
+        batch : dict
+            A batch of input data.
+
+        Returns
+        -------
+        torch.Tensor
+            The loss value.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
@@ -232,6 +363,19 @@ class WindowTransformerDetector(LightningModule):
         return loss
 
     def validation_step(self, batch, _):
+        """
+        Execute a validation step.
+
+        Parameters
+        ----------
+        batch : dict
+            A batch of input data.
+
+        Returns
+        -------
+        torch.Tensor
+            The loss value.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
@@ -246,6 +390,14 @@ class WindowTransformerDetector(LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """
+        Configure the optimizers and learning rate schedulers.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the optimizer and learning rate scheduler configurations.
+        """
         optimizer = Adam(self.parameters(), lr=1e-1)
         scheduler = WarmupLR(
             optimizer,
@@ -264,12 +416,50 @@ class WindowTransformerDetector(LightningModule):
         }
 
     def on_before_optimizer_step(self, _):
+        """
+        Log gradient norms before the optimizer step.
+        """
         self.log_dict(grad_norm(self, norm_type=2))
 
 
 class WindowLinearDetector(LightningModule):
-    """Use convolutional layers to extract features, then use them
-    in a dense block"""
+    """
+    A detector that uses convolutional layers to extract features and a dense block for detection.
+
+    Parameters
+    ----------
+    window : int
+        The size of the input window.
+    convolution_features : list[int]
+        A list of the number of features for each convolutional layer.
+    convolution_width : list[int]
+        A list of the kernel widths for each convolutional layer.
+    convolution_dropout : float
+        Dropout rate for convolutional layers.
+    linear_dropout : float, optional
+        Dropout rate for the dense block, by default 0.
+    linear_layers : list[int] | None, optional
+        A list of the number of units for each dense layer, by default None.
+    loss : str, optional
+        The key for the loss mask in the input batch, by default "mask".
+    loss_boost_fp : float, optional
+        Factor to boost the loss for false positives, by default 0.2.
+    warmup : int, optional
+        Number of warmup steps for learning rate scheduling, by default 30.
+
+    Methods
+    -------
+    forward(x)
+        Perform a forward pass through the network.
+    training_step(batch, _)
+        Execute a training step.
+    validation_step(batch, _)
+        Execute a validation step.
+    configure_optimizers()
+        Configure the optimizers and learning rate schedulers.
+    on_before_optimizer_step(_)
+        Log gradient norms before the optimizer step.
+    """
 
     def __init__(
         self,
@@ -309,8 +499,17 @@ class WindowLinearDetector(LightningModule):
 
     def forward(self, x):
         """
-        :param x: input of size (batch, window)
-        :return: output of size (batch, window)
+        Perform a forward pass through the network.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape (batch, window).
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape (batch, window).
         """
         x = x.unsqueeze(1)
         x = self.convolutions(x)
@@ -320,6 +519,19 @@ class WindowLinearDetector(LightningModule):
         return x.squeeze()
 
     def training_step(self, batch, _):
+        """
+        Execute a training step.
+
+        Parameters
+        ----------
+        batch : dict
+            A batch of input data.
+
+        Returns
+        -------
+        torch.Tensor
+            The loss value.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
@@ -345,6 +557,19 @@ class WindowLinearDetector(LightningModule):
         return loss
 
     def validation_step(self, batch, _):
+        """
+        Execute a validation step.
+
+        Parameters
+        ----------
+        batch : dict
+            A batch of input data.
+
+        Returns
+        -------
+        torch.Tensor
+            The loss value.
+        """
         y = self.forward(batch["data"] + batch["artifact"])
         m = batch[self.loss]
         loss = mse_loss(y, m)
@@ -360,6 +585,14 @@ class WindowLinearDetector(LightningModule):
         return loss
 
     def configure_optimizers(self):
+        """
+        Configure the optimizers and learning rate schedulers.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the optimizer and learning rate scheduler configurations.
+        """
         optimizer = Adam(self.parameters(), lr=1e-2)
         scheduler = ReduceLROnPlateau(
             optimizer,
@@ -382,4 +615,7 @@ class WindowLinearDetector(LightningModule):
         }
 
     def on_before_optimizer_step(self, _):
+        """
+        Log gradient norms before the optimizer step.
+        """
         self.log_dict(grad_norm(self, norm_type=2))
